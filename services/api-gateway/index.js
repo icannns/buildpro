@@ -5,7 +5,16 @@ const authMiddleware = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+
+// Service URLs from Environment Variables (with defaults for local dev)
+const SERVICES = {
+    AUTH: process.env.AUTH_SERVICE_URL || 'http://localhost:5005',
+    PROJECT: process.env.PROJECT_SERVICE_URL || 'http://localhost:5001',
+    MATERIAL: process.env.MATERIAL_SERVICE_URL || 'http://localhost:5002',
+    VENDOR: process.env.VENDOR_SERVICE_URL || 'http://localhost:5003',
+    PAYMENT: process.env.PAYMENT_SERVICE_URL || 'http://localhost:5004'
+};
 
 // Middleware
 app.use(cors());
@@ -23,13 +32,7 @@ app.get('/', (req, res) => {
         service: 'API Gateway',
         status: 'Active',
         version: '2.0.0',
-        routes: {
-            auth: 'http://localhost:5005',
-            projects: 'http://localhost:5001',
-            materials: 'http://localhost:5002',
-            vendor: 'http://localhost:5003',
-            payments: 'http://localhost:5004'
-        }
+        routes: SERVICES
     });
 });
 
@@ -43,24 +46,20 @@ app.use('/api', async (req, res, next) => {
         let path = req.url; // req.url is already without /api prefix
 
         // Route to appropriate service
-        // Route to appropriate service
         if (path.startsWith('/auth')) {
-            // For auth service, keep the full path including /auth
-            // But auth service expects /login, /register, etc. without /auth prefix
-            // So we need to remove /auth
             const authPath = path.replace('/auth', '');
-            targetUrl = 'http://localhost:5005';
-            path = authPath || '/'; // If empty, use root
+            targetUrl = SERVICES.AUTH;
+            path = authPath || '/';
 
             console.log(`[DEBUG] Auth route: original=${req.url}, forwarding to=${targetUrl}${path}`);
         } else if (path.startsWith('/projects')) {
-            targetUrl = 'http://localhost:5001';
+            targetUrl = SERVICES.PROJECT;
         } else if (path.startsWith('/update-progress')) {
             // RBAC: Only ADMIN and PROJECT_MANAGER can update progress
             if (req.user && !['ADMIN', 'PROJECT_MANAGER'].includes(req.user.role)) {
                 return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions' });
             }
-            targetUrl = 'http://localhost:5001';
+            targetUrl = SERVICES.PROJECT;
         } else if (path.startsWith('/materials')) {
             // RBAC for Materials
             if (path.includes('/restock') && req.method === 'POST') {
@@ -74,16 +73,16 @@ app.use('/api', async (req, res, next) => {
                     return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions' });
                 }
             }
-            targetUrl = 'http://localhost:5002';
+            targetUrl = SERVICES.MATERIAL;
         } else if (path.startsWith('/vendor')) {
             path = path.replace('/vendor', ''); // Remove /vendor prefix for Go service
-            targetUrl = 'http://localhost:5003';
+            targetUrl = SERVICES.VENDOR;
         } else if (path.startsWith('/payments')) {
             // RBAC: VENDOR and VIEWER cannot view payments
             if (req.user && (req.user.role === 'VENDOR' || req.user.role === 'VIEWER')) {
                 return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions to view payments' });
             }
-            targetUrl = 'http://localhost:5004';
+            targetUrl = SERVICES.PAYMENT;
         } else {
             return next(); // Not found
         }
@@ -140,14 +139,8 @@ app.use(errorHandler);
 // Start server
 app.listen(PORT, () => {
     console.log('==========================================');
-    console.log('🌐 API Gateway running on port 5000');
+    console.log(`🌐 API Gateway running on port ${PORT}`);
     console.log('Version: 2.0.0 (with Authentication)');
-    console.log('Routes:');
-    console.log('   /api/auth/*    -> Auth Service (5005)');
-    console.log('   /api/projects  -> Node.js (5001)');
-    console.log('   /api/materials -> Python (5002)');
-    console.log('   /api/vendor    -> Go (5003)');
-    console.log('   /api/payments  -> Java (5004)');
+    console.log('Routes:', SERVICES);
     console.log('==========================================');
 });
-
