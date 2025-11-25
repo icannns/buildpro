@@ -1,6 +1,21 @@
 {
+  "name": "buildpro-root",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:gateway\" \"npm run dev:project\" \"npm run dev:material\" \"npm run dev:vendor\" \"npm run dev:budget\" \"npm run dev:client\" \"npm run dev:portal\"",
+    "dev:gateway": "cd services/api-gateway && node index.js",
+    "dev:project": "cd services/project-service && node index.js",
+    "dev:material": "cd services/material-service && \"C:\\Users\\Legion\\AppData\\Local\\Programs\\Python\\Python314\\python.exe\" app.py",
+    "dev:vendor": "cd services/vendor-service && go run main.go",
+    "dev:budget": "cd services/budget-service && \"C:\\Program Files\\Java\\jdk-22\\bin\\javac.exe\" BudgetService.java && \"C:\\Program Files\\Java\\jdk-22\\bin\\java.exe\" BudgetService",
+    "dev:client": "cd client && npm run dev",
+    "dev:portal": "cd vendor-portal && \"C:\\Users\\Legion\\AppData\\Local\\Programs\\Python\\Python314\\python.exe\" -m http.server 5005"
+  },
   "dependencies": {
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }

@@ -8,13 +8,13 @@ import {
     FundOutlined,
     LoadingOutlined
 } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const { Title, Paragraph, Text } = Typography;
 
-const API_URL = 'http://localhost:5000/api';
-
 function FinanceBudget() {
+    const { user } = useAuth(); // Get current user
     const [payments, setPayments] = useState([]);
     const [summary, setSummary] = useState({
         totalContract: 0,
@@ -36,7 +36,7 @@ function FinanceBudget() {
             setLoading(true);
             setError(null);
 
-            const response = await axios.get(`${API_URL}/payments`);
+            const response = await api.get('/payments');
 
             if (response.data.success) {
                 // Add key prop for Table component
@@ -158,6 +158,19 @@ function FinanceBudget() {
                     <Paragraph type="secondary">Memuat data keuangan...</Paragraph>
                 </div>
             </div>
+        );
+    }
+
+    // Restrict access: VENDORS and VIEWERS cannot view finance data
+    if (user && (user.role === 'VENDOR' || user.role === 'VIEWER')) {
+        return (
+            <Alert
+                message="Akses Ditolak"
+                description="Anda tidak memiliki izin untuk melihat data keuangan proyek."
+                type="error"
+                showIcon
+                style={{ marginTop: '24px' }}
+            />
         );
     }
 

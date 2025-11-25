@@ -10,14 +10,14 @@ import {
     PlusOutlined,
     EditOutlined
 } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const { Title, Paragraph, Text } = Typography;
 const { Option } = Select;
 
-const API_URL = 'http://localhost:5000/api';
-
 function MaterialLogistics() {
+    const { user } = useAuth(); // Get current user
     const [materials, setMaterials] = useState([]);
     const [statistics, setStatistics] = useState({
         totalSKU: 0,
@@ -43,12 +43,22 @@ function MaterialLogistics() {
         fetchMaterialsData();
     }, []);
 
+    // Check if user can order materials (ADMIN or PROJECT_MANAGER only)
+    const canOrderMaterials = () => {
+        return user && (user.role === 'ADMIN' || user.role === 'PROJECT_MANAGER');
+    };
+
+    // Check if user can update prices (VENDOR, ADMIN, or PROJECT_MANAGER)
+    const canUpdatePrice = () => {
+        return user && (user.role === 'VENDOR' || user.role === 'ADMIN' || user.role === 'PROJECT_MANAGER');
+    };
+
     const fetchMaterialsData = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const response = await axios.get(`${API_URL}/materials`);
+            const response = await api.get('/materials');
 
             if (response.data.success) {
                 const materialsWithKeys = response.data.data.map(item => ({
@@ -86,7 +96,7 @@ function MaterialLogistics() {
         try {
             setOrdering(true);
 
-            const response = await axios.post(`${API_URL}/materials/restock`, {
+            const response = await api.post('/materials/restock', {
                 id: selectedMaterialId,
                 qty: orderQty
             });
@@ -138,7 +148,7 @@ function MaterialLogistics() {
         try {
             setUpdatingPrice(true);
 
-            const response = await axios.post(`${API_URL}/materials/update-price`, {
+            const response = await api.post('/materials/update-price', {
                 id: selectedPriceMaterialId,
                 new_price: newPrice
             });
@@ -266,21 +276,25 @@ function MaterialLogistics() {
                     </Paragraph>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        size="large"
-                        onClick={showOrderModal}
-                    >
-                        Order Material Baru
-                    </Button>
-                    <Button
-                        icon={<EditOutlined />}
-                        size="large"
-                        onClick={showPriceModal}
-                    >
-                        Simulasi Vendor Update Harga
-                    </Button>
+                    {canOrderMaterials() && (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            size="large"
+                            onClick={showOrderModal}
+                        >
+                            Order Material Baru
+                        </Button>
+                    )}
+                    {canUpdatePrice() && (
+                        <Button
+                            icon={<EditOutlined />}
+                            size="large"
+                            onClick={showPriceModal}
+                        >
+                            {user?.role === 'VENDOR' ? 'Update Harga (Vendor)' : 'Simulasi Vendor Update Harga'}
+                        </Button>
+                    )}
                 </div>
             </div>
 

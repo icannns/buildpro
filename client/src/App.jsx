@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space } from 'antd';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { Layout, Menu, Button, Typography, Space, Spin } from 'antd';
 import {
     DashboardOutlined,
     ShoppingOutlined,
@@ -8,11 +8,16 @@ import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     BuildOutlined,
-    UserOutlined
+    UserOutlined,
+    LogoutOutlined
 } from '@ant-design/icons';
 import './App.css';
 
+// Import context
+import { AuthProvider, useAuth } from './context/AuthContext';
+
 // Import pages
+import Login from './pages/Login';
 import DashboardHome from './pages/DashboardHome';
 import MaterialLogistics from './pages/MaterialLogistics';
 import FinanceBudget from './pages/FinanceBudget';
@@ -20,10 +25,26 @@ import FinanceBudget from './pages/FinanceBudget';
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
+// Protected Route Component
+function ProtectedRoute({ children }) {
+    const { isAuthenticated, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <Spin size="large" />
+            </div>
+        );
+    }
+
+    return isAuthenticated ? children : <Navigate to="/login" />;
+}
+
 // Main Layout Component
 function AppLayout() {
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
+    const { user, logout } = useAuth();
 
     // Determine selected menu key based on current route
     const getSelectedKey = () => {
@@ -32,6 +53,11 @@ function AppLayout() {
         if (path === '/material') return '2';
         if (path === '/finance') return '3';
         return '1';
+    };
+
+    const handleLogout = () => {
+        logout();
+        window.location.href = '/login';
     };
 
     const menuItems = [
@@ -102,7 +128,16 @@ function AppLayout() {
                     />
                     <Space>
                         <UserOutlined style={{ fontSize: '18px' }} />
-                        <Text>Admin User</Text>
+                        <Text strong>{user?.name || 'User'}</Text>
+                        <Text type="secondary">({user?.role || 'N/A'})</Text>
+                        <Button
+                            type="text"
+                            icon={<LogoutOutlined />}
+                            onClick={handleLogout}
+                            danger
+                        >
+                            Logout
+                        </Button>
                     </Space>
                 </Header>
 
@@ -125,13 +160,26 @@ function AppLayout() {
     );
 }
 
-// App component with Router wrapper
+// App component with Router wrapper and Auth Provider
 function App() {
     return (
-        <Router>
-            <AppLayout />
-        </Router>
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route
+                        path="/*"
+                        element={
+                            <ProtectedRoute>
+                                <AppLayout />
+                            </ProtectedRoute>
+                        }
+                    />
+                </Routes>
+            </Router>
+        </AuthProvider>
     );
 }
 
 export default App;
+

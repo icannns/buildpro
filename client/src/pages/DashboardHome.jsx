@@ -11,16 +11,16 @@ import {
     ClockCircleOutlined,
     LineChartOutlined
 } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const { Title, Text, Paragraph } = Typography;
 
-const API_URL = 'http://localhost:5000/api';
-
 function DashboardHome() {
+    const { user } = useAuth(); // Get current user
     const [project, setProject] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -39,7 +39,7 @@ function DashboardHome() {
             setLoading(true);
             setError(null);
 
-            const response = await axios.get(`${API_URL}/projects`);
+            const response = await api.get('/projects');
 
             if (response.data.success && response.data.data.length > 0) {
                 const projectData = response.data.data[0];
@@ -64,6 +64,11 @@ function DashboardHome() {
         }
     };
 
+    // Check if user can update progress (ADMIN or PROJECT_MANAGER only)
+    const canUpdateProgress = () => {
+        return user && (user.role === 'ADMIN' || user.role === 'PROJECT_MANAGER');
+    };
+
     const handleUpdateProgress = async () => {
         if (!project) return;
 
@@ -75,7 +80,7 @@ function DashboardHome() {
                 return;
             }
 
-            const response = await axios.post(`${API_URL}/update-progress`, {
+            const response = await api.post('/update-progress', {
                 project_id: project.id,
                 progress: newProgress
             });
@@ -414,14 +419,16 @@ function DashboardHome() {
                     <Divider />
 
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <Button
-                            type="primary"
-                            size="large"
-                            icon={<DashboardOutlined />}
-                            onClick={showUpdateModal}
-                        >
-                            Update Progress
-                        </Button>
+                        {canUpdateProgress() && (
+                            <Button
+                                type="primary"
+                                size="large"
+                                icon={<DashboardOutlined />}
+                                onClick={showUpdateModal}
+                            >
+                                Update Progress
+                            </Button>
+                        )}
                         <Button
                             size="large"
                             icon={<InfoCircleOutlined />}
