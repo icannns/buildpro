@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Row, Col, Statistic, Spin, Alert, Button, message, Modal, Select, InputNumber } from 'antd';
+import { Card, Table, Tag, Typography, Row, Col, Statistic, Spin, Alert, Button, message, Modal, Select, InputNumber, Form, Input, Space } from 'antd';
 import {
     ShoppingOutlined,
     WarningOutlined,
@@ -39,13 +39,18 @@ function MaterialLogistics() {
     const [newPrice, setNewPrice] = useState(0);
     const [updatingPrice, setUpdatingPrice] = useState(false);
 
+    // Add Material Modal
+    const [addMaterialModalVisible, setAddMaterialModalVisible] = useState(false);
+    const [addingMaterial, setAddingMaterial] = useState(false);
+    const [addMaterialForm] = Form.useForm();
+
     useEffect(() => {
         fetchMaterialsData();
     }, []);
 
-    // Check if user can order materials (ADMIN or PROJECT_MANAGER only)
+    // Check if user can order materials (ADMIN or STAFF_LOGISTIC only, matching backend)
     const canOrderMaterials = () => {
-        return user && (user.role === 'ADMIN' || user.role === 'PROJECT_MANAGER');
+        return user && (user.role === 'ADMIN' || user.role === 'STAFF_LOGISTIC');
     };
 
     // Check if user can update prices (VENDOR, ADMIN, or PROJECT_MANAGER)
@@ -97,8 +102,8 @@ function MaterialLogistics() {
             setOrdering(true);
 
             const response = await api.post('/materials/restock', {
-                id: selectedMaterialId,
-                qty: orderQty
+                id: parseInt(selectedMaterialId),
+                qty: parseInt(orderQty)
             });
 
             if (response.data.success) {
@@ -110,7 +115,8 @@ function MaterialLogistics() {
             }
         } catch (err) {
             console.error('Error ordering material:', err);
-            message.error('Gagal order material. Cek koneksi backend.');
+            const errorMsg = err.response?.data?.message || err.message;
+            message.error(`Gagal: ${errorMsg}`);
         } finally {
             setOrdering(false);
         }
@@ -165,6 +171,28 @@ function MaterialLogistics() {
             message.error('Gagal update harga. Cek koneksi backend.');
         } finally {
             setUpdatingPrice(false);
+        }
+    };
+
+    const handleAddMaterial = async (values) => {
+        try {
+            setAddingMaterial(true);
+            const response = await api.post('/materials', values);
+
+            if (response.data.success) {
+                message.success('Material baru berhasil ditambahkan');
+                setAddMaterialModalVisible(false);
+                addMaterialForm.resetFields();
+                fetchMaterialsData(); // Refresh data
+            } else {
+                message.error('Gagal menambahkan material');
+            }
+        } catch (err) {
+            console.error('Error adding material:', err);
+            const errorMsg = err.response?.data?.message || err.message;
+            message.error(`Gagal: ${errorMsg}`);
+        } finally {
+            setAddingMaterial(false);
         }
     };
 
@@ -277,14 +305,25 @@ function MaterialLogistics() {
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
                     {canOrderMaterials() && (
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            size="large"
-                            onClick={showOrderModal}
-                        >
-                            Order Material Baru
-                        </Button>
+                        <>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                size="large"
+                                onClick={showOrderModal}
+                            >
+                                Order Material Baru
+                            </Button>
+                            <Button
+                                type="primary"
+                                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', marginLeft: '8px' }}
+                                icon={<PlusOutlined />}
+                                size="large"
+                                onClick={() => setAddMaterialModalVisible(true)}
+                            >
+                                + Tambah Item Baru
+                            </Button>
+                        </>
                     )}
                     {canUpdatePrice() && (
                         <Button
@@ -457,6 +496,90 @@ function MaterialLogistics() {
                         style={{ marginTop: '16px' }}
                     />
                 </div>
+            </Modal>
+            {/* Add Material Modal */}
+            <Modal
+                title="Tambah Material Baru"
+                open={addMaterialModalVisible}
+                onCancel={() => {
+                    setAddMaterialModalVisible(false);
+                    addMaterialForm.resetFields();
+                }}
+                footer={null}
+                width={600}
+            >
+                <Form
+                    form={addMaterialForm}
+                    layout="vertical"
+                    onFinish={handleAddMaterial}
+                >
+                    <Form.Item
+                        name="name"
+                        label="Nama Material"
+                        rules={[{ required: true, message: 'Masukkan nama material' }]}
+                    >
+                        <Input placeholder="Contoh: Semen Gresik 40kg" />
+                    </Form.Item>
+
+                    <Form.Item
+                        name="category"
+                        label="Kategori"
+                        rules={[{ required: true, message: 'Pilih kategori' }]}
+                    >
+                        <Select placeholder="Pilih kategori">
+                            <Option value="Material Dasar">Material Dasar</Option>
+                            <Option value="Material Struktur">Material Struktur</Option>
+                            <Option value="Finishing">Finishing</Option>
+                            <Option value="Alat">Alat</Option>
+                        </Select>
+                    </Form.Item>
+
+                    <Row gutter={16}>
+                        <Col span={12}>
+                            <Form.Item
+                                name="unit"
+                                label="Satuan"
+                                rules={[{ required: true, message: 'Masukkan satuan' }]}
+                            >
+                                <Input placeholder="Contoh: Sak, kg, batang" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item
+                                name="stock"
+                                label="Stok Awal"
+                                rules={[{ required: true, message: 'Masukkan stok awal' }]}
+                            >
+                                <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Form.Item
+                        name="price"
+                        label="Harga Estimasi (Rp)"
+                        rules={[{ required: true, message: 'Masukkan harga' }]}
+                    >
+                        <InputNumber
+                            min={0}
+                            style={{ width: '100%' }}
+                            formatter={value => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            parser={value => value.replace(/Rp\s?|(,*)/g, '')}
+                            placeholder="Harga per unit"
+                        />
+                    </Form.Item>
+
+                    <Form.Item>
+                        <Space style={{ float: 'right' }}>
+                            <Button onClick={() => setAddMaterialModalVisible(false)}>
+                                Batal
+                            </Button>
+                            <Button type="primary" htmlType="submit" loading={addingMaterial}>
+                                Simpan Material
+                            </Button>
+                        </Space>
+                    </Form.Item>
+                </Form>
             </Modal>
         </div>
     );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Progress, Button, Typography, Space, Tag, Divider, Row, Col, Statistic, Spin, Alert, message, Modal, InputNumber, Drawer, Timeline } from 'antd';
+import { Card, Progress, Button, Typography, Space, Tag, Divider, Row, Col, Statistic, Spin, Alert, message, Modal, InputNumber, Drawer, Timeline, Tooltip } from 'antd';
 import {
     BuildOutlined,
     CalendarOutlined,
@@ -9,58 +9,56 @@ import {
     InfoCircleOutlined,
     CheckCircleOutlined,
     ClockCircleOutlined,
-    LineChartOutlined
+    LineChartOutlined,
+    EditOutlined
 } from '@ant-design/icons';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useProject } from '../context/ProjectContext';
+import ProjectModal from '../components/ProjectModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const { Title, Text, Paragraph } = Typography;
 
 function DashboardHome() {
-    const { user } = useAuth(); // Get current user
-    const [project, setProject] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+    const { activeProject, refreshActiveProject, updateProject } = useProject();
+    const project = activeProject; // Use active project from context
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [newProgress, setNewProgress] = useState(0);
     const [updating, setUpdating] = useState(false);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [scurveDrawerVisible, setScurveDrawerVisible] = useState(false);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [editModalLoading, setEditModalLoading] = useState(false);
 
     useEffect(() => {
-        fetchProjectData();
+        // Project data comes from context, no need to fetch
     }, []);
 
     const fetchProjectData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const response = await api.get('/projects');
-
-            if (response.data.success && response.data.data.length > 0) {
-                const projectData = response.data.data[0];
-                setProject(projectData);
-                setNewProgress(projectData.progress || 0);
-            } else {
-                setError('No project data found');
-            }
-        } catch (err) {
-            console.error('Error fetching project data:', err);
-            setError('Gagal memuat data proyek. Pastikan backend sudah running.');
-            message.error('Gagal memuat data proyek');
-        } finally {
-            setLoading(false);
-        }
+        // Refresh active project from context
+        await refreshActiveProject();
     };
 
     const showUpdateModal = () => {
         if (project) {
             setNewProgress(project.progress || 0);
             setIsModalVisible(true);
+        }
+    };
+
+    const handleEditProject = async (projectData) => {
+        if (!project?.id) return;
+        setEditModalLoading(true);
+        const result = await updateProject(project.id, projectData);
+        setEditModalLoading(false);
+        if (result.success) {
+            setEditModalVisible(false);
         }
     };
 
@@ -325,6 +323,15 @@ function DashboardHome() {
         return `Rp ${parseFloat(amount).toLocaleString('id-ID')}`;
     };
 
+    const calculateDaysRemaining = (endDate) => {
+        if (!endDate) return null;
+        const today = new Date();
+        const deadline = new Date(endDate);
+        const diffTime = deadline - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    };
+
     return (
         <div>
             <Title level={2}>Dashboard Proyek</Title>
@@ -345,7 +352,29 @@ function DashboardHome() {
                 extra={
                     <Space>
                         <CalendarOutlined />
-                        <Text type="secondary">Deadline: {formatDate(project.deadline)}</Text>
+                        <Text type="secondary">Deadline: {formatDate(project.end_date)}</Text>
+                        {(() => {
+                            const daysRemaining = calculateDaysRemaining(project.end_date);
+                            if (daysRemaining !== null) {
+                                return (
+                                    <Tag color={daysRemaining > 30 ? 'green' : daysRemaining > 7 ? 'orange' : 'red'}>
+                                        {daysRemaining > 0 ? `${daysRemaining} hari lagi` : `Terlambat ${Math.abs(daysRemaining)} hari`}
+                                    </Tag>
+                                );
+                            }
+                            return null;
+                        })()}
+
+                        {/* Edit Project Button - ADMIN Only */}
+                        {user?.role === 'ADMIN' && (
+                            <Tooltip title="Edit Proyek">
+                                <Button
+                                    type="link"
+                                    icon={<EditOutlined />}
+                                    onClick={() => setEditModalVisible(true)}
+                                />
+                            </Tooltip>
+                        )}
                     </Space>
                 }
                 style={{ marginTop: '24px' }}
@@ -551,7 +580,7 @@ function DashboardHome() {
                             <Text><strong>Kontraktor:</strong> {project?.contractor}</Text>
                             <Text><strong>Budget:</strong> {formatCurrency(project?.budget)}</Text>
                             <Text><strong>Tanggal Mulai:</strong> {formatDate(project?.start_date)}</Text>
-                            <Text><strong>Deadline:</strong> {formatDate(project?.deadline)}</Text>
+                            <Text><strong>Deadline:</strong> {formatDate(project?.end_date)}</Text>
                             <Text><strong>Progress:</strong> {project?.progress}%</Text>
                         </Space>
                     </div>
@@ -639,7 +668,7 @@ function DashboardHome() {
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="week" />
                                 <YAxis label={{ value: 'Progress (%)', angle: -90, position: 'insideLeft' }} />
-                                <Tooltip />
+                                <RechartsTooltip />
                                 <Legend />
                                 <Line
                                     type="monotone"
@@ -682,6 +711,16 @@ function DashboardHome() {
                     </div>
                 </Space>
             </Drawer>
+
+            {/* Edit Project Modal */}
+            <ProjectModal
+                visible={editModalVisible}
+                onClose={() => setEditModalVisible(false)}
+                onSubmit={handleEditProject}
+                mode="edit"
+                initialData={project}
+                loading={editModalLoading}
+            />
         </div>
     );
 }

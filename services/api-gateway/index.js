@@ -52,35 +52,95 @@ app.use('/api', async (req, res, next) => {
             path = authPath || '/';
 
             console.log(`[DEBUG] Auth route: original=${req.url}, forwarding to=${targetUrl}${path}`);
-        } else if (path.startsWith('/projects')) {
+        }
+        // PROJECT SERVICE ROUTES
+        else if (path.startsWith('/projects')) {
+            targetUrl = SERVICES.PROJECT;
+        } else if (path.startsWith('/daily-logs')) {
+            // RBAC: ADMIN and WORKER can manage daily logs
+            if (req.method !== 'GET' && req.user && !['ADMIN', 'WORKER'].includes(req.user.role)) {
+                return res.status(403).json({ success: false, message: 'Access Denied: Only Admin/Worker can manage daily logs' });
+            }
+            targetUrl = SERVICES.PROJECT;
+        } else if (path.startsWith('/progress-history')) {
             targetUrl = SERVICES.PROJECT;
         } else if (path.startsWith('/update-progress')) {
-            // RBAC: Only ADMIN and PROJECT_MANAGER can update progress
-            if (req.user && !['ADMIN', 'PROJECT_MANAGER'].includes(req.user.role)) {
+            // RBAC: Only ADMIN and WORKER can update progress
+            if (req.user && !['ADMIN', 'WORKER'].includes(req.user.role)) {
                 return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions' });
             }
             targetUrl = SERVICES.PROJECT;
-        } else if (path.startsWith('/materials')) {
+        }
+        // MATERIAL SERVICE ROUTES
+        else if (path.startsWith('/materials')) {
             // RBAC for Materials
             if (path.includes('/restock') && req.method === 'POST') {
-                // Only ADMIN and PM can restock
-                if (req.user && !['ADMIN', 'PROJECT_MANAGER'].includes(req.user.role)) {
-                    return res.status(403).json({ success: false, message: 'Access Denied: Only Admin/PM can restock' });
+                // Only ADMIN and STAFF_LOGISTIC can restock
+                if (req.user && !['ADMIN', 'STAFF_LOGISTIC'].includes(req.user.role)) {
+                    return res.status(403).json({ success: false, message: 'Access Denied: Only Admin/Staff Logistic can restock' });
                 }
-            } else if (path.includes('/update-price') && req.method === 'POST') {
-                // VENDOR, ADMIN, PM can update price. VIEWER cannot.
-                if (req.user && !['ADMIN', 'PROJECT_MANAGER', 'VENDOR'].includes(req.user.role)) {
+            } else if (path.includes('/usage') && req.method === 'POST') {
+                // ADMIN and STAFF_LOGISTIC can record usage
+                if (req.user && !['ADMIN', 'STAFF_LOGISTIC', 'WORKER'].includes(req.user.role)) {
                     return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions' });
                 }
             }
             targetUrl = SERVICES.MATERIAL;
-        } else if (path.startsWith('/vendor')) {
-            path = path.replace('/vendor', ''); // Remove /vendor prefix for Go service
+        } else if (path.startsWith('/purchase-orders')) {
+            // RBAC: Only ADMIN and STAFF_LOGISTIC can manage POs
+            if (req.method !== 'GET' && req.user && !['ADMIN', 'STAFF_LOGISTIC'].includes(req.user.role)) {
+                return res.status(403).json({ success: false, message: 'Access Denied: Only Admin/Staff Logistic can manage purchase orders' });
+            }
+            targetUrl = SERVICES.MATERIAL;
+        }
+        // VENDOR SERVICE ROUTES
+        else if (path.startsWith('/vendors')) {
+            // RBAC: 
+            // - VENDOR can POST/PUT to /vendors/:id/materials (their own materials)
+            // - ADMIN and STAFF_LOGISTIC can do everything
+            // - Everyone can GET
+            if (req.method !== 'GET') {
+                const isVendorMaterialRoute = path.match(/\/vendors\/\d+\/materials/);
+                const allowedRoles = ['ADMIN', 'STAFF_LOGISTIC'];
+
+                // Allow VENDOR to manage their own materials
+                if (isVendorMaterialRoute) {
+                    allowedRoles.push('VENDOR');
+                }
+
+                if (req.user && !allowedRoles.includes(req.user.role)) {
+                    return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions' });
+                }
+            }
             targetUrl = SERVICES.VENDOR;
+        } else if (path.startsWith('/vendor-materials')) {
+            // VENDOR can update their materials, others can view
+            targetUrl = SERVICES.VENDOR;
+        }
+        // BUDGET/PAYMENT SERVICE ROUTES
+        else if (path.startsWith('/payment-terms')) {
+            // Special check for payment confirmation: /payment-terms/:id/pay
+            if (path.match(/\/payment-terms\/\d+\/pay/)) {
+                if (req.user && !['ADMIN', 'MANAGER'].includes(req.user.role)) {
+                    return res.status(403).json({ success: false, message: 'Access Denied: Only ADMIN or MANAGER can confirm payments' });
+                }
+            }
+
+            // RBAC: VENDOR cannot view/manage payment terms
+            if (req.user && req.user.role === 'VENDOR') {
+                return res.status(403).json({ success: false, message: 'Access Denied: Vendors cannot access payment terms' });
+            }
+            targetUrl = SERVICES.PAYMENT;
+        } else if (path.startsWith('/budget')) {
+            // RBAC: VENDOR cannot view budget
+            if (req.user && req.user.role === 'VENDOR') {
+                return res.status(403).json({ success: false, message: 'Access Denied: Vendors cannot access budget information' });
+            }
+            targetUrl = SERVICES.PAYMENT;
         } else if (path.startsWith('/payments')) {
-            // RBAC: VENDOR and VIEWER cannot view payments
-            if (req.user && (req.user.role === 'VENDOR' || req.user.role === 'VIEWER')) {
-                return res.status(403).json({ success: false, message: 'Access Denied: Insufficient permissions to view payments' });
+            // RBAC: VENDOR cannot view payments
+            if (req.user && req.user.role === 'VENDOR') {
+                return res.status(403).json({ success: false, message: 'Access Denied: Vendors cannot access payments' });
             }
             targetUrl = SERVICES.PAYMENT;
         } else {

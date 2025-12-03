@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { Layout, Menu, Button, Typography, Space, Spin } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Spin, Select, Tooltip } from 'antd';
 import {
     DashboardOutlined,
     ShoppingOutlined,
@@ -9,18 +9,29 @@ import {
     MenuUnfoldOutlined,
     BuildOutlined,
     UserOutlined,
-    LogoutOutlined
+    LogoutOutlined,
+    FileTextOutlined,
+    ShopOutlined,
+    ShoppingCartOutlined,
+    PlusOutlined
 } from '@ant-design/icons';
 import './App.css';
 
-// Import context
+//Import context
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProjectProvider, useProject } from './context/ProjectContext';
+
+// Import components
+import ProjectModal from './components/ProjectModal';
 
 // Import pages
 import Login from './pages/Login';
 import DashboardHome from './pages/DashboardHome';
 import MaterialLogistics from './pages/MaterialLogistics';
 import FinanceBudget from './pages/FinanceBudget';
+import DailyLogs from './pages/DailyLogs';
+import VendorPortal from './pages/VendorPortal';
+import PurchaseOrders from './pages/PurchaseOrders';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -45,13 +56,19 @@ function AppLayout() {
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
     const { user, logout } = useAuth();
+    const { activeProject, projects, switchProject, createProject } = useProject();
+    const [projectModalVisible, setProjectModalVisible] = useState(false);
+    const [projectModalLoading, setProjectModalLoading] = useState(false);
 
     // Determine selected menu key based on current route
     const getSelectedKey = () => {
         const path = location.pathname;
         if (path === '/') return '1';
-        if (path === '/material') return '2';
-        if (path === '/finance') return '3';
+        if (path === '/daily-logs') return '2';
+        if (path === '/material') return '3';
+        if (path === '/purchase-orders') return '4';
+        if (path === '/vendor-portal') return '5';
+        if (path === '/finance') return '6';
         return '1';
     };
 
@@ -60,23 +77,73 @@ function AppLayout() {
         window.location.href = '/login';
     };
 
-    const menuItems = [
-        {
-            key: '1',
-            icon: <DashboardOutlined />,
-            label: <Link to="/">Dashboard Proyek</Link>,
-        },
-        {
-            key: '2',
-            icon: <ShoppingOutlined />,
-            label: <Link to="/material">Material/Logistik</Link>,
-        },
-        {
-            key: '3',
-            icon: <DollarOutlined />,
-            label: <Link to="/finance">Keuangan</Link>,
-        },
-    ];
+    // Role-based menu items
+    const getMenuItems = () => {
+        const role = user?.role;
+        const baseItems = [
+            {
+                key: '1',
+                icon: <DashboardOutlined />,
+                label: <Link to="/">Dashboard Proyek</Link>,
+            },
+        ];
+
+        // Daily Logs - visible for ADMIN, WORKER
+        if (role === 'ADMIN' || role === 'WORKER') {
+            baseItems.push({
+                key: '2',
+                icon: <FileTextOutlined />,
+                label: <Link to="/daily-logs">Log Harian</Link>,
+            });
+        }
+
+        // Material/Logistics - visible for ADMIN, STAFF_LOGISTIC
+        if (role === 'ADMIN' || role === 'STAFF_LOGISTIC') {
+            baseItems.push({
+                key: '3',
+                icon: <ShoppingOutlined />,
+                label: <Link to="/material">Material/Logistik</Link>,
+            });
+        }
+
+        // Purchase Orders - visible for ADMIN, STAFF_LOGISTIC
+        if (role === 'ADMIN' || role === 'STAFF_LOGISTIC') {
+            baseItems.push({
+                key: '4',
+                icon: <ShoppingCartOutlined />,
+                label: <Link to="/purchase-orders">Purchase Orders</Link>,
+            });
+        }
+
+        // Vendor Portal - visible for ADMIN, VENDOR
+        if (role === 'ADMIN' || role === 'VENDOR') {
+            baseItems.push({
+                key: '5',
+                icon: <ShopOutlined />,
+                label: <Link to="/vendor-portal">Portal Vendor</Link>,
+            });
+        }
+
+        // Finance - visible for ADMIN only (restricted in FinanceBudget.jsx)
+        if (role === 'ADMIN') {
+            baseItems.push({
+                key: '6',
+                icon: <DollarOutlined />,
+                label: <Link to="/finance">Keuangan</Link>,
+            });
+        }
+
+        return baseItems;
+    };
+
+    const handleCreateProject = async (projectData) => {
+        setProjectModalLoading(true);
+        const result = await createProject(projectData);
+        setProjectModalLoading(false);
+        if (result.success) {
+            setProjectModalVisible(false);
+        }
+    };
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -101,7 +168,7 @@ function AppLayout() {
                     theme="dark"
                     mode="inline"
                     selectedKeys={[getSelectedKey()]}
-                    items={menuItems}
+                    items={getMenuItems()}
                 />
             </Sider>
 
@@ -127,6 +194,32 @@ function AppLayout() {
                         }}
                     />
                     <Space>
+                        {/* Project Switcher */}
+                        <Select
+                            value={activeProject?.id}
+                            onChange={switchProject}
+                            style={{ width: 250 }}
+                            placeholder="Pilih Proyek"
+                        >
+                            {projects.map(project => (
+                                <Select.Option key={project.id} value={project.id}>
+                                    {project.name}
+                                </Select.Option>
+                            ))}
+                        </Select>
+
+                        {/* Create Project Button - ADMIN Only */}
+                        {user?.role === 'ADMIN' && (
+                            <Tooltip title="Buat Proyek Baru">
+                                <Button
+                                    type="primary"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => setProjectModalVisible(true)}
+                                    style={{ borderRadius: '50%' }}
+                                />
+                            </Tooltip>
+                        )}
+
                         <UserOutlined style={{ fontSize: '18px' }} />
                         <Text strong>{user?.name || 'User'}</Text>
                         <Text type="secondary">({user?.role || 'N/A'})</Text>
@@ -151,11 +244,23 @@ function AppLayout() {
                 >
                     <Routes>
                         <Route path="/" element={<DashboardHome />} />
+                        <Route path="/daily-logs" element={<DailyLogs />} />
                         <Route path="/material" element={<MaterialLogistics />} />
+                        <Route path="/purchase-orders" element={<PurchaseOrders />} />
+                        <Route path="/vendor-portal" element={<VendorPortal />} />
                         <Route path="/finance" element={<FinanceBudget />} />
                     </Routes>
                 </Content>
             </Layout>
+
+            {/* Project Modal */}
+            <ProjectModal
+                visible={projectModalVisible}
+                onClose={() => setProjectModalVisible(false)}
+                onSubmit={handleCreateProject}
+                mode="create"
+                loading={projectModalLoading}
+            />
         </Layout>
     );
 }
@@ -171,7 +276,9 @@ function App() {
                         path="/*"
                         element={
                             <ProtectedRoute>
-                                <AppLayout />
+                                <ProjectProvider>
+                                    <AppLayout />
+                                </ProjectProvider>
                             </ProtectedRoute>
                         }
                     />

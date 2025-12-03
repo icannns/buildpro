@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Badge, Typography, Row, Col, Progress, Statistic, Divider, Spin, Alert, Button, message } from 'antd';
+import { Card, Table, Badge, Typography, Row, Col, Progress, Statistic, Divider, Spin, Alert, Button, message, Popconfirm, Tag } from 'antd';
 import {
     DollarOutlined,
     PayCircleOutlined,
@@ -10,11 +10,13 @@ import {
 } from '@ant-design/icons';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useProject } from '../context/ProjectContext';
 
 const { Title, Paragraph, Text } = Typography;
 
 function FinanceBudget() {
-    const { user } = useAuth(); // Get current user
+    const { user } = useAuth();
+    const { activeProject } = useProject();
     const [payments, setPayments] = useState([]);
     const [summary, setSummary] = useState({
         totalContract: 0,
@@ -28,25 +30,41 @@ function FinanceBudget() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetchPaymentsData();
-    }, []);
+        if (activeProject?.id) {
+            fetchPaymentsData();
+        }
+    }, [activeProject]);
 
     const fetchPaymentsData = async () => {
+        if (!activeProject?.id) return;
+
         try {
             setLoading(true);
             setError(null);
 
-            const response = await api.get('/payments');
+            const projectId = activeProject.id;
 
-            if (response.data.success) {
-                // Add key prop for Table component
-                const paymentsWithKeys = response.data.data.map(item => ({
+            // Fetch payment terms for active project
+            const paymentResponse = await api.get(`/payment-terms/${projectId}`);
+
+            // Fetch budget summary for active project
+            const summaryResponse = await api.get(`/budget/summary/${projectId}`);
+
+            if (paymentResponse.data.success) {
+                // Add key prop for Table component and map field names
+                const paymentsWithKeys = paymentResponse.data.data.map((item, index) => ({
                     ...item,
-                    key: item.id.toString()
+                    key: item.id.toString(),
+                    termin_number: index + 1, // Generate termin number from index
+                    date: item.due_date || item.paid_date // Use due_date or paid_date
                 }));
 
                 setPayments(paymentsWithKeys);
-                setSummary(response.data.summary);
+
+                // Set summary from budget summary endpoint
+                if (summaryResponse.data.success) {
+                    setSummary(summaryResponse.data.data);
+                }
             } else {
                 setError('Failed to load payments data');
             }
@@ -65,6 +83,19 @@ function FinanceBudget() {
         return date.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' });
     };
 
+    const handlePayment = async (paymentId) => {
+        try {
+            const response = await api.put(`/payment-terms/${paymentId}/pay`, {});
+            if (response.data.success) {
+                message.success('Pembayaran berhasil dikonfirmasi!');
+                fetchPaymentsData(); // Refresh table and summary
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            message.error(error.response?.data?.message || 'Gagal memproses pembayaran');
+        }
+    };
+
     const columns = [
         {
             title: 'Termin',
@@ -77,7 +108,7 @@ function FinanceBudget() {
             title: 'Deskripsi',
             dataIndex: 'termin_name',
             key: 'termin_name',
-            width: '35%',
+            width: '30%',
         },
         {
             title: 'Tanggal',
@@ -101,7 +132,7 @@ function FinanceBudget() {
             title: 'Status',
             dataIndex: 'status',
             key: 'status',
-            width: '20%',
+            width: '10%',
             filters: [
                 { text: 'Paid', value: 'Paid' },
                 { text: 'Pending', value: 'Pending' },
@@ -146,6 +177,38 @@ function FinanceBudget() {
                         />
                     );
                 }
+            },
+        },
+        {
+            title: 'Aksi',
+            key: 'action',
+            align: 'center',
+            width: '15%',
+            render: (_, record) => {
+                const canPay = user && ['ADMIN', 'MANAGER'].includes(user.role);
+
+                if (record.status === 'Pending') {
+                    if (canPay) {
+                        return (
+                            <Popconfirm
+                                title="Konfirmasi Pembayaran"
+                                description={`Yakin mencairkan dana Rp ${parseFloat(record.amount).toLocaleString('id-ID')}?`}
+                                onConfirm={() => handlePayment(record.id)}
+                                okText="Ya, Bayar"
+                                cancelText="Batal"
+                            >
+                                <Button type="primary" size="small">
+                                    Bayar Sekarang
+                                </Button>
+                            </Popconfirm>
+                        );
+                    }
+                    return <Tag color="warning">Menunggu Konfirmasi</Tag>;
+                }
+                if (record.status === 'Paid') {
+                    return <Tag color="success">Lunas</Tag>;
+                }
+                return <Text type="secondary">-</Text>;
             },
         },
     ];

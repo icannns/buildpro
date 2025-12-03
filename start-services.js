@@ -34,16 +34,9 @@ const services = [
     {
         name: 'Budget Service (Java)',
         command: '"C:\\Program Files\\Java\\jdk-22\\bin\\java.exe"',
-        args: ['-cp', '.', 'BudgetService'], // Run from compiled class
+        args: ['-cp', '.;mysql-connector-j-9.5.0.jar;json-20230227.jar', 'BudgetServiceMySQL'], // Run MySQL version
         cwd: 'services/budget-service',
         color: '\x1b[31m' // Red
-    },
-    {
-        name: 'Vendor Portal',
-        command: 'C:\\Users\\Legion\\AppData\\Local\\Programs\\Python\\Python314\\python.exe',
-        args: ['-m', 'http.server', '5005'],
-        cwd: 'vendor-portal',
-        color: '\x1b[34m' // Blue
     },
     {
         name: 'Frontend Client',
@@ -56,7 +49,7 @@ const services = [
 
 // Compile Java first
 console.log('Compiling Java Service...');
-const javac = spawn('"C:\\Program Files\\Java\\jdk-22\\bin\\javac.exe"', ['BudgetService.java'], {
+const javac = spawn('"C:\\Program Files\\Java\\jdk-22\\bin\\javac.exe"', ['-cp', '.;mysql-connector-j-9.5.0.jar;json-20230227.jar', 'BudgetServiceMySQL.java'], {
     cwd: path.join(__dirname, 'services/budget-service'),
     shell: true
 });
