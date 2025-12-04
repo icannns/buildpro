@@ -12,10 +12,12 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 
 public class BudgetServiceMySQL {
-    private static final int PORT = 5004;
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/buildpro_db";
-    private static final String DB_USER = "root";
-    private static final String DB_PASSWORD = "";
+    private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("PORT", "5001"));
+    private static final String DB_HOST = System.getenv().getOrDefault("DB_HOST", "localhost");
+    private static final String DB_USER = System.getenv().getOrDefault("DB_USER", "root");
+    private static final String DB_PASSWORD = System.getenv().getOrDefault("DB_PASSWORD", "");
+    private static final String DB_NAME = System.getenv().getOrDefault("DB_NAME", "buildpro_db");
+    private static final String DB_URL = "jdbc:mysql://" + DB_HOST + ":3306/" + DB_NAME;
 
     private static Connection dbConnection;
 
@@ -23,7 +25,7 @@ public class BudgetServiceMySQL {
         // Initialize database connection
         Class.forName("com.mysql.cj.jdbc.Driver");
         dbConnection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-        System.out.println("✓ Connected to MySQL database");
+        System.out.println("✅ Budget Service connected to MySQL database: " + DB_NAME);
 
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
 

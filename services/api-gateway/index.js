@@ -9,11 +9,11 @@ const PORT = process.env.PORT || 5000;
 
 // Service URLs from Environment Variables (with defaults for local dev)
 const SERVICES = {
-    AUTH: process.env.AUTH_SERVICE_URL || 'http://localhost:5005',
-    PROJECT: process.env.PROJECT_SERVICE_URL || 'http://localhost:5001',
+    AUTH: process.env.AUTH_SERVICE_URL || 'http://localhost:5004',
+    PROJECT: process.env.PROJECT_SERVICE_URL || 'http://localhost:5003',
     MATERIAL: process.env.MATERIAL_SERVICE_URL || 'http://localhost:5002',
-    VENDOR: process.env.VENDOR_SERVICE_URL || 'http://localhost:5003',
-    PAYMENT: process.env.PAYMENT_SERVICE_URL || 'http://localhost:5004'
+    VENDOR: process.env.VENDOR_SERVICE_URL || 'http://localhost:5005',
+    PAYMENT: process.env.BUDGET_SERVICE_URL || 'http://localhost:5001'  // Budget service for payments
 };
 
 // Middleware

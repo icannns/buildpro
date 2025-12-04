@@ -8,7 +8,7 @@ const { registerSchema, loginSchema } = require('./validators/authValidator');
 const { ROLES } = require('./config/roles');
 
 const app = express();
-const PORT = process.env.PORT || 5005;
+const PORT = process.env.PORT || 5004;
 
 // Middleware
 app.use(cors());

@@ -1,6 +1,6 @@
 module vendor-service
 
-go 1.25.3
+go 1.21.3
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

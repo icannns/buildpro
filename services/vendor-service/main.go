@@ -6,11 +6,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
+
+// Helper function to get environment variable with default
+func getEnv(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
 
 type Response struct {
 	Success bool        `json:"success"`
@@ -60,9 +70,16 @@ func enableCORS(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func main() {
-	// Database connection
+	// Database connection from environment variables
+	dbHost := getEnv("DB_HOST", "localhost")
+	dbUser := getEnv("DB_USER", "root")
+	dbPassword := getEnv("DB_PASSWORD", "")
+	dbName := getEnv("DB_NAME", "buildpro_db")
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", dbUser, dbPassword, dbHost, dbName)
+
 	var err error
-	db, err = sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/buildpro_db")
+	db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,6 +90,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Cannot connect to database:", err)
 	}
+
+	fmt.Println("✅ Vendor Service connected to MySQL database:", dbName)
 
 	// Routes
 	http.HandleFunc("/", rootHandler)
@@ -89,8 +108,9 @@ func main() {
 	// Price comparison
 	http.HandleFunc("/materials/price-comparison/", priceComparisonHandler)
 
-	fmt.Println("🚀 Vendor Service (Go) running on port 5003")
-	log.Fatal(http.ListenAndServe(":5003", nil))
+	port := getEnv("PORT", "5005")
+	fmt.Println("🚀 Vendor Service (Go) running on port", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {

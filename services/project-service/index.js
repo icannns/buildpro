@@ -73,6 +73,34 @@ app.post('/projects', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [name, progress || 0, status || 'Active', location, contractor, budget, start_date, end_date]);
 
+        // AUTOMATICALLY CREATE PAYMENT TERMS
+        const projectId = result.insertId;
+        const projectBudget = parseFloat(budget);
+
+        // Default Terms: DP (20%), Termin 1 (30%), Termin 2 (40%), Retensi (10%)
+        const terms = [
+            { name: 'Down Payment (DP)', pct: 20, trigger: 0, due: 'NOW' },
+            { name: 'Termin 1 (Pondasi)', pct: 30, trigger: 25, due: 'LATER' },
+            { name: 'Termin 2 (Struktur)', pct: 40, trigger: 75, due: 'LATER' },
+            { name: 'Retensi (Serah Terima)', pct: 10, trigger: 100, due: 'LATER' }
+        ];
+
+        for (const term of terms) {
+            const amount = (projectBudget * term.pct) / 100;
+            let status = 'PENDING';
+            let dueDate = new Date(); // Default NOW
+
+            if (term.due === 'LATER') {
+                // Estimate due date (just for placeholder, e.g., +1 month per term step)
+                dueDate.setMonth(dueDate.getMonth() + (term.trigger / 25));
+            }
+
+            await db.execute(`
+                INSERT INTO payment_terms (project_id, termin_name, amount, status, due_date, milestone_percentage)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `, [projectId, term.name, amount, status, dueDate, term.trigger]);
+        }
+
         res.status(201).json({
             success: true,
             message: 'Project created successfully',
@@ -83,6 +111,7 @@ app.post('/projects', async (req, res) => {
                 status
             }
         });
+
     } catch (error) {
         console.error('Error creating project:', error);
         res.status(500).json({

@@ -2,16 +2,17 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-# Database Configuration
+# Database Configuration from environment variables
 db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',
-    'database': 'buildpro_db'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'user': os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', ''),
+    'database': os.environ.get('DB_NAME', 'buildpro_db')
 }
 
 def get_db_connection():
@@ -542,5 +543,6 @@ def compare_prices(material_name):
             conn.close()
 
 if __name__ == '__main__':
-    print("🚀 Material Service (Python) running on port 5002")
-    app.run(port=5002, debug=True)
+    port = int(os.environ.get('PORT', 5002))
+    print(f"🚀 Material Service (Python) running on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=True)

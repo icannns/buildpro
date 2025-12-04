@@ -2,10 +2,10 @@ const mysql = require('mysql2');
 
 // Create connection pool for efficient database connections
 const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'buildpro_db',
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'buildpro_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
