@@ -151,7 +151,7 @@ docker-compose restart project-service
 
 ## 👥 Contributors
 
-- Your Name
+- icannns
 
 ## 📄 License
 
