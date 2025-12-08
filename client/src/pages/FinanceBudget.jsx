@@ -32,6 +32,13 @@ function FinanceBudget() {
     useEffect(() => {
         if (activeProject?.id) {
             fetchPaymentsData();
+
+            // Auto-refresh every 5 seconds for realtime feel
+            const interval = setInterval(() => {
+                fetchPaymentsData();
+            }, 5000);
+
+            return () => clearInterval(interval);
         }
     }, [activeProject]);
 

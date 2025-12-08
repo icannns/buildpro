@@ -1,11 +1,4 @@
--- BuildPro Database Schema
--- Complete schema for all microservices
 
--- =====================================================
--- PROJECT SERVICE TABLES
--- =====================================================
-
--- Projects table (should already exist, but included for completeness)
 CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,

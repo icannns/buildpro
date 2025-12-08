@@ -13,16 +13,27 @@ function authMiddleware(req, res, next) {
         return next();
     }
 
-    // DEVELOPMENT MODE: Skip authentication for ALL requests
-    // TODO: Remove this in production and implement proper authentication
-    // For now, allow all operations without token for testing
-    console.log('[Auth Middleware] DEVELOPMENT MODE - Allowing request without auth:', req.method, fullPath);
-    return next();
-
-    /* PRODUCTION CODE - Uncomment when deploying:
+    // Extract token and decode user info
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    // DEVELOPMENT MODE: Still decode token to get user info
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            req.user = decoded; // Attach user info to request
+            console.log('[Auth Middleware] User authenticated:', req.user.email, 'Role:', req.user.role);
+        } catch (error) {
+            console.warn('[Auth Middleware] Invalid token, but allowing in dev mode:', error.message);
+            // In dev mode, we still allow the request but without user info
+        }
+    } else {
+        console.warn('[Auth Middleware] No token provided');
+    }
+
+    next();
+
+    /* PRODUCTION CODE - Replace above with strict auth:
     if (!token) {
         return res.status(401).json({
             success: false,

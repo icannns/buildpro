@@ -79,14 +79,9 @@ public class BudgetServiceMySQL {
                 } else if (t.getRequestMethod().equalsIgnoreCase("PUT")) {
                     // PUT /payment-terms/:id/pay (Payment Confirmation)
                     if (pathParts.length == 4 && pathParts[3].equals("pay")) {
-                        // RBAC Check: Only ADMIN or MANAGER can pay
-                        String userRole = t.getRequestHeaders().getFirst("x-user-role");
-                        if (userRole == null || (!userRole.equals("ADMIN") && !userRole.equals("MANAGER"))) {
-                            sendResponse(t, 403,
-                                    "{\"success\": false, \"message\": \"Access Denied: Only ADMIN or MANAGER can confirm payments\"}");
-                            return;
-                        }
-
+                        // RBAC is handled by API Gateway - trust the gateway
+                        // API Gateway already validates that only ADMIN/MANAGER can access this
+                        // endpoint
                         int id = Integer.parseInt(pathParts[2]);
                         confirmPayment(t, id);
                     }

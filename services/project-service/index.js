@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const BUDGET_SERVICE_URL = process.env.BUDGET_SERVICE_URL || 'http://localhost:5001';
 
 // Middleware
 app.use(cors());
@@ -215,6 +217,18 @@ app.post('/update-progress', async (req, res) => {
             ON DUPLICATE KEY UPDATE actual_progress = ?, notes = ?
         `, [project_id, today, progress, 'Manual progress update', progress, 'Manual progress update']);
 
+        // EAI: Trigger Budget Service to process milestone
+        try {
+            const budgetResponse = await axios.post(
+                `${BUDGET_SERVICE_URL}/payments/process-milestone`,
+                { project_id, progress }
+            );
+            console.log(`✅ [EAI] Milestone processed: ${budgetResponse.data.triggered_count} payment(s) triggered`);
+        } catch (error) {
+            console.error('⚠️ [EAI] Failed to process milestone:', error.message);
+            // Don't block progress update if Budget Service fails
+        }
+
         // Get updated project
         const [rows] = await db.execute('SELECT * FROM projects WHERE id = ?', [project_id]);
 
@@ -349,6 +363,17 @@ app.post('/daily-logs', async (req, res) => {
             'INSERT INTO event_queue (event_type, payload, status) VALUES (?, ?, ?)',
             ['PROGRESS_UPDATE', eventPayload, 'PENDING']
         );
+
+        // EAI: Trigger Budget Service to process milestone
+        try {
+            const budgetResponse = await axios.post(
+                `${BUDGET_SERVICE_URL}/payments/process-milestone`,
+                { project_id, progress: newProgress }
+            );
+            console.log(`✅ [EAI] Milestone processed: ${budgetResponse.data.triggered_count} payment(s) triggered`);
+        } catch (error) {
+            console.error('⚠️ [EAI] Failed to process milestone:', error.message);
+        }
 
         // Get created log
         const [createdLog] = await db.execute('SELECT * FROM daily_logs WHERE id = ?', [result.insertId]);
