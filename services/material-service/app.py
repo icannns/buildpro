@@ -185,6 +185,39 @@ def restock_material():
             cursor.close()
             conn.close()
 
+@app.route('/materials/<int:id>', methods=['DELETE'])
+def delete_material(id):
+    """Delete material from inventory"""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"success": False, "message": "Database connection failed"}), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if material exists
+        cursor.execute('SELECT name FROM materials WHERE id = %s', (id,))
+        material = cursor.fetchone()
+        
+        if not material:
+            return jsonify({"success": False, "message": "Material not found"}), 404
+        
+        # Delete material
+        cursor.execute('DELETE FROM materials WHERE id = %s', (id,))
+        conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Material '{material['name']}' berhasil dihapus"
+        })
+        
+    except Error as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
 # =====================================================
 # MATERIAL USAGE ENDPOINTS
 # =====================================================
@@ -496,6 +529,39 @@ def update_po_status(po_id):
         conn.commit()
         
         return jsonify({"success": True, "message": f"Status updated to {status}"})
+        
+    except Error as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    finally:
+        if conn.is_connected():
+            cursor.close()
+            conn.close()
+
+@app.route('/purchase-orders/<int:po_id>', methods=['DELETE'])
+def delete_purchase_order(po_id):
+    """Delete purchase order"""
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({"success": False, "message": "Database connection failed"}), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if PO exists
+        cursor.execute('SELECT id FROM purchase_orders WHERE id = %s', (po_id,))
+        po = cursor.fetchone()
+        
+        if not po:
+            return jsonify({"success": False, "message": "Purchase order not found"}), 404
+        
+        # Delete purchase order
+        cursor.execute('DELETE FROM purchase_orders WHERE id = %s', (po_id,))
+        conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Purchase order PO-{po_id:04d} berhasil dihapus"
+        })
         
     except Error as e:
         return jsonify({"success": False, "message": str(e)}), 500

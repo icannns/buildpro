@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Tag, Typography, Row, Col, Statistic, Spin, Alert, Button, message, Modal, Select, InputNumber, Form, Input, Space } from 'antd';
+import { Card, Table, Tag, Typography, Row, Col, Statistic, Spin, Alert, Button, message, Modal, Select, InputNumber, Form, Input, Space, Popconfirm } from 'antd';
 import {
     ShoppingOutlined,
     WarningOutlined,
@@ -8,7 +8,7 @@ import {
     DollarOutlined,
     LoadingOutlined,
     PlusOutlined,
-    EditOutlined
+    DeleteOutlined
 } from '@ant-design/icons';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -33,16 +33,13 @@ function MaterialLogistics() {
     const [orderQty, setOrderQty] = useState(1);
     const [ordering, setOrdering] = useState(false);
 
-    // Update Price Modal
-    const [priceModalVisible, setPriceModalVisible] = useState(false);
-    const [selectedPriceMaterialId, setSelectedPriceMaterialId] = useState(null);
-    const [newPrice, setNewPrice] = useState(0);
-    const [updatingPrice, setUpdatingPrice] = useState(false);
-
     // Add Material Modal
     const [addMaterialModalVisible, setAddMaterialModalVisible] = useState(false);
     const [addingMaterial, setAddingMaterial] = useState(false);
     const [addMaterialForm] = Form.useForm();
+
+    // Delete Material
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         fetchMaterialsData();
@@ -51,11 +48,6 @@ function MaterialLogistics() {
     // Check if user can order materials (ADMIN or STAFF_LOGISTIC only, matching backend)
     const canOrderMaterials = () => {
         return user && (user.role === 'ADMIN' || user.role === 'STAFF_LOGISTIC');
-    };
-
-    // Check if user can update prices (VENDOR, ADMIN, or PROJECT_MANAGER)
-    const canUpdatePrice = () => {
-        return user && (user.role === 'VENDOR' || user.role === 'ADMIN' || user.role === 'PROJECT_MANAGER');
     };
 
     const fetchMaterialsData = async () => {
@@ -122,55 +114,24 @@ function MaterialLogistics() {
         }
     };
 
-    // Update Price Functions
-    const showPriceModal = () => {
-        setPriceModalVisible(true);
-        if (materials.length > 0) {
-            const firstMaterial = materials[0];
-            setSelectedPriceMaterialId(firstMaterial.id);
-            setNewPrice(parseFloat(firstMaterial.price));
-        }
-    };
-
-    const handleMaterialPriceChange = (materialId) => {
-        const material = materials.find(m => m.id === materialId);
-        if (material) {
-            setSelectedPriceMaterialId(materialId);
-            setNewPrice(parseFloat(material.price));
-        }
-    };
-
-    const handleUpdatePrice = async () => {
-        if (!selectedPriceMaterialId || !newPrice) {
-            message.error('Pilih material dan masukkan harga baru!');
-            return;
-        }
-
-        if (newPrice < 0) {
-            message.error('Harga tidak boleh negatif!');
-            return;
-        }
-
+    // Delete Material Function
+    const handleDeleteMaterial = async (id, name) => {
         try {
-            setUpdatingPrice(true);
-
-            const response = await api.post('/materials/update-price', {
-                id: selectedPriceMaterialId,
-                new_price: newPrice
-            });
+            setDeleting(true);
+            const response = await api.delete(`/materials/${id}`);
 
             if (response.data.success) {
                 message.success(response.data.message);
-                setPriceModalVisible(false);
                 await fetchMaterialsData(); // Refresh data
             } else {
-                message.error('Gagal update harga');
+                message.error('Gagal menghapus material');
             }
         } catch (err) {
-            console.error('Error updating price:', err);
-            message.error('Gagal update harga. Cek koneksi backend.');
+            console.error('Error deleting material:', err);
+            const errorMsg = err.response?.data?.message || err.message;
+            message.error(`Gagal: ${errorMsg}`);
         } finally {
-            setUpdatingPrice(false);
+            setDeleting(false);
         }
     };
 
@@ -261,6 +222,29 @@ function MaterialLogistics() {
                 );
             },
         },
+        {
+            title: 'Aksi',
+            key: 'action',
+            render: (_, record) => (
+                <Popconfirm
+                    title={`Hapus material "${record.name}"?`}
+                    description="Material yang dihapus tidak dapat dikembalikan."
+                    onConfirm={() => handleDeleteMaterial(record.id, record.name)}
+                    okText="Hapus"
+                    cancelText="Batal"
+                    okButtonProps={{ danger: true }}
+                >
+                    <Button
+                        icon={<DeleteOutlined />}
+                        danger
+                        size="small"
+                        loading={deleting}
+                    >
+                        Hapus
+                    </Button>
+                </Popconfirm>
+            ),
+        },
     ];
 
     if (loading) {
@@ -324,15 +308,6 @@ function MaterialLogistics() {
                                 + Tambah Item Baru
                             </Button>
                         </>
-                    )}
-                    {canUpdatePrice() && (
-                        <Button
-                            icon={<EditOutlined />}
-                            size="large"
-                            onClick={showPriceModal}
-                        >
-                            {user?.role === 'VENDOR' ? 'Update Harga (Vendor)' : 'Simulasi Vendor Update Harga'}
-                        </Button>
                     )}
                 </div>
             </div>
@@ -442,56 +417,6 @@ function MaterialLogistics() {
                         message="Info"
                         description="Stok akan ditambahkan ke inventaris saat ini"
                         type="info"
-                        showIcon
-                        style={{ marginTop: '16px' }}
-                    />
-                </div>
-            </Modal>
-
-            {/* Update Price Modal */}
-            <Modal
-                title="Simulasi Vendor Update Harga"
-                open={priceModalVisible}
-                onOk={handleUpdatePrice}
-                onCancel={() => setPriceModalVisible(false)}
-                confirmLoading={updatingPrice}
-                okText="Update Harga"
-                cancelText="Batal"
-            >
-                <div style={{ padding: '20px 0' }}>
-                    <div style={{ marginBottom: '16px' }}>
-                        <Text strong>Pilih Material:</Text>
-                        <Select
-                            style={{ width: '100%', marginTop: '8px' }}
-                            value={selectedPriceMaterialId}
-                            onChange={handleMaterialPriceChange}
-                            size="large"
-                        >
-                            {materials.map(material => (
-                                <Option key={material.id} value={material.id}>
-                                    {material.name} - Harga saat ini: Rp {parseFloat(material.price).toLocaleString('id-ID')}
-                                </Option>
-                            ))}
-                        </Select>
-                    </div>
-
-                    <div>
-                        <Text strong>Harga Baru (Rp):</Text>
-                        <InputNumber
-                            min={0}
-                            value={newPrice}
-                            onChange={setNewPrice}
-                            style={{ width: '100%', marginTop: '8px' }}
-                            size="large"
-                            formatter={value => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                            parser={value => value.replace(/Rp\s?|(,*)/g, '')}
-                        />
-                    </div>
-
-                    <Alert
-                        message="Simulasi Vendor"
-                        description="Fitur ini mensimulasikan update harga dari vendor/supplier"
-                        type="warning"
                         showIcon
                         style={{ marginTop: '16px' }}
                     />

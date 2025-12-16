@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Select, message, Space, Tag } from 'antd';
-import { ShoppingCartOutlined, PlusOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, Form, Input, DatePicker, InputNumber, Select, message, Space, Tag, Popconfirm } from 'antd';
+import { ShoppingCartOutlined, PlusOutlined, CheckCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../utils/api';
 import dayjs from 'dayjs';
 
@@ -17,6 +17,7 @@ function PurchaseOrders() {
     const [selectedPO, setSelectedPO] = useState(null);
     const [form] = Form.useForm();
     const [receiveForm] = Form.useForm();
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         fetchPOs();
@@ -120,6 +121,26 @@ function PurchaseOrders() {
         }
     };
 
+    const handleDeletePO = async (id) => {
+        try {
+            setDeleting(true);
+            const response = await api.delete(`/purchase-orders/${id}`);
+
+            if (response.data.success) {
+                message.success(response.data.message);
+                await fetchPOs(); // Refresh data
+            } else {
+                message.error('Gagal menghapus purchase order');
+            }
+        } catch (error) {
+            console.error('Error deleting PO:', error);
+            const errorMsg = error.response?.data?.message || error.message;
+            message.error(`Gagal: ${errorMsg}`);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     const columns = [
         {
             title: 'PO ID',
@@ -204,6 +225,23 @@ function PurchaseOrders() {
                             Terima Barang
                         </Button>
                     )}
+                    <Popconfirm
+                        title={`Hapus PO-${record.id.toString().padStart(4, '0')}?`}
+                        description="Purchase order yang dihapus tidak dapat dikembalikan."
+                        onConfirm={() => handleDeletePO(record.id)}
+                        okText="Hapus"
+                        cancelText="Batal"
+                        okButtonProps={{ danger: true }}
+                    >
+                        <Button
+                            icon={<DeleteOutlined />}
+                            danger
+                            size="small"
+                            loading={deleting}
+                        >
+                            Hapus
+                        </Button>
+                    </Popconfirm>
                 </Space>
             ),
         },

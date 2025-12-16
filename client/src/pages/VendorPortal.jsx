@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, Input, InputNumber, message, Space, Tag, Tabs } from 'antd';
-import { ShopOutlined, DollarOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Card, Table, Button, Modal, Form, Input, InputNumber, message, Space, Tag, Tabs, Popconfirm } from 'antd';
+import { ShopOutlined, EditOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,6 +14,7 @@ function VendorPortal() {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingMaterial, setEditingMaterial] = useState(null);
     const [form] = Form.useForm();
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         fetchVendors();
@@ -83,42 +84,23 @@ function VendorPortal() {
         }
     };
 
-    const handleComparePrice = async (materialName) => {
+    const handleDeleteMaterial = async (id, name) => {
         try {
-            const response = await api.get(`/materials/${materialName}/compare-prices`);
+            setDeleting(true);
+            const response = await api.delete(`/vendors/1/materials/${id}`);
+
             if (response.data.success) {
-                Modal.info({
-                    title: `Perbandingan Harga: ${materialName}`,
-                    width: 600,
-                    content: (
-                        <Table
-                            dataSource={response.data.data}
-                            columns={[
-                                {
-                                    title: 'Vendor',
-                                    dataIndex: 'vendor_name',
-                                    key: 'vendor_name',
-                                },
-                                {
-                                    title: 'Harga',
-                                    dataIndex: 'price',
-                                    key: 'price',
-                                    render: (price) => `Rp ${price.toLocaleString('id-ID')}`,
-                                },
-                                {
-                                    title: 'Stok',
-                                    dataIndex: 'stock_available',
-                                    key: 'stock_available',
-                                },
-                            ]}
-                            pagination={false}
-                            size="small"
-                        />
-                    ),
-                });
+                message.success(response.data.message);
+                await fetchVendorMaterials(); // Refresh data
+            } else {
+                message.error('Gagal menghapus material');
             }
         } catch (error) {
-            message.error('Gagal membandingkan harga');
+            console.error('Error deleting material:', error);
+            const errorMsg = error.response?.data?.message || error.message;
+            message.error(`Gagal: ${errorMsg}`);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -167,13 +149,23 @@ function VendorPortal() {
                     >
                         Edit Harga
                     </Button>
-                    <Button
-                        icon={<DollarOutlined />}
-                        size="small"
-                        onClick={() => handleComparePrice(record.material_name)}
+                    <Popconfirm
+                        title={`Hapus material "${record.material_name}"?`}
+                        description="Material yang dihapus tidak dapat dikembalikan."
+                        onConfirm={() => handleDeleteMaterial(record.id, record.material_name)}
+                        okText="Hapus"
+                        cancelText="Batal"
+                        okButtonProps={{ danger: true }}
                     >
-                        Bandingkan
-                    </Button>
+                        <Button
+                            icon={<DeleteOutlined />}
+                            danger
+                            size="small"
+                            loading={deleting}
+                        >
+                            Hapus
+                        </Button>
+                    </Popconfirm>
                 </Space>
             ),
         },
