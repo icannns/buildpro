@@ -214,6 +214,19 @@ INSERT INTO users (username, password, full_name, email, role, status)
 SELECT 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoJMeKrjHGjxDH00gHKhHPn4Y0mLJXXVXXXX', 'Administrator', 'admin@buildpro.com', 'ADMIN', 'Active'
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
+-- Add other default users (same password: 123456)
+INSERT INTO users (username, password, full_name, email, role, status)
+SELECT 'worker', '$2a$10$N9qo8uLOickgx2ZMRZoJMeKrjHGjxDH00gHKhHPn4Y0mLJXXVXXXX', 'Budi Tukang', 'worker@buildpro.com', 'WORKER', 'Active'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'worker');
+
+INSERT INTO users (username, password, full_name, email, role, status)
+SELECT 'logistic', '$2a$10$N9qo8uLOickgx2ZMRZoJMeKrjHGjxDH00gHKhHPn4Y0mLJXXVXXXX', 'Siti Logistik', 'logistic@buildpro.com', 'STAFF_LOGISTIC', 'Active'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'logistic');
+
+INSERT INTO users (username, password, full_name, email, role, status)
+SELECT 'vendor', '$2a$10$N9qo8uLOickgx2ZMRZoJMeKrjHGjxDH00gHKhHPn4Y0mLJXXVXXXX', 'Vendor Utama', 'vendor@buildpro.com', 'VENDOR', 'Active'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'vendor');
+
 -- Add sample vendors
 INSERT INTO vendors (name, contact_person, phone, email, address, rating, status)
 VALUES 
