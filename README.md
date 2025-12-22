@@ -6,8 +6,6 @@
 
 > **BuildPro** adalah sistem manajemen konstruksi berbasis web yang dirancang untuk mengelola proyek konstruksi, material, vendor, keuangan, dan log harian dengan arsitektur microservices.
 
-
-
 ---
 
 ## 📋 Daftar Isi
@@ -906,4 +904,4 @@ Kami sangat terbuka dengan kontribusi! Berikut cara berkontribusi:
 
 
 
-</div>
+
