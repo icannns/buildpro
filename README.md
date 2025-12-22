@@ -6,7 +6,7 @@
 
 > **BuildPro** adalah sistem manajemen konstruksi berbasis web yang dirancang untuk mengelola proyek konstruksi, material, vendor, keuangan, dan log harian dengan arsitektur microservices.
 
-![BuildPro Banner](https://via.placeholder.com/1200x300/4A90E2/FFFFFF?text=BuildPro+-+Construction+Management+System)
+
 
 ---
 
@@ -904,16 +904,6 @@ Kami sangat terbuka dengan kontribusi! Berikut cara berkontribusi:
 - [Railway](https://railway.app/) - Deployment platform
 - [Vercel](https://vercel.com/) - Frontend hosting
 
----
 
-## 📞 Support
-
-Jika ada pertanyaan atau masalah:
-
-- 📧 Email: support@buildpro.com
-- 🐛 Issues: [GitHub Issues](https://github.com/icannns/buildpro/issues)
-- 📚 Documentation: [Wiki](https://github.com/icannns/buildpro/wiki)
-
----
 
 </div>
