@@ -197,6 +197,98 @@ Sebelum memulai, pastikan Anda telah menginstall:
 
 ---
 
+## ⚡ Quick Start Guide
+
+**Setup dalam 3 Langkah!**
+
+### 🚀 **Opsi 1: One-Command Setup (Recommended)**
+
+```bash
+# 1. Clone repository
+git clone https://github.com/icannns/buildpro.git
+cd buildpro
+
+# 2. Start everything (database auto-initialized!)
+docker-compose up -d
+
+# 3. Wait ~60 seconds for all services to start, then open browser
+# Frontend: http://localhost:5173
+# Login: admin@buildpro.com / 123456
+```
+
+**That's it!** 🎉 Database schema dan sample data sudah ter-setup otomatis!
+
+### ✅ What Happens Automatically:
+
+1. ✅ **MySQL database** created and initialized
+2. ✅ **Complete schema** auto-imported from single `database/schema.sql`
+3. ✅ **All tables** created (projects, users, materials, vendors, payment_terms, etc.)
+4. ✅ **Sample data** (users, projects, materials) ready to use
+5. ✅ **All 9 services** started and ready
+
+### 🎯 Verification
+
+Check if everything is running:
+
+```bash
+# Check all containers
+docker ps
+
+# Should see 9 running containers:
+# - buildpro-db (MySQL)
+# - buildpro-client (React Frontend)
+# - buildpro-api-gateway
+# - buildpro-auth-service
+# - buildpro-project-service
+# - buildpro-budget-service
+# - buildpro-material-service
+# - buildpro-vendor-service
+# - buildpro-graphql-server
+```
+
+### 🐛 Troubleshooting Quick Start
+
+**If frontend shows "Tidak Ada Data":**
+
+```bash
+# View database logs to see if initialization completed
+docker logs buildpro-db
+
+# If needed, manually import schema:
+docker exec -i buildpro-db mysql -uroot -proot buildpro_db < database/schema.sql
+```
+
+**If services fail to start:**
+
+```bash
+# View logs
+docker-compose logs -f
+
+# Restart everything
+docker-compose down
+docker-compose up -d
+```
+
+### 📱 Access Points
+
+Once running, access:
+
+- 🌐 **Frontend**: http://localhost:5173
+- 🔌 **API Gateway**: http://localhost:5000/api
+- 🔮 **GraphQL Playground**: http://localhost:5006/graphql
+- 🗄️ **MySQL**: localhost:3307 (user: root, password: root)
+
+### 🔐 Default Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@buildpro.com | 123456 |
+| Worker | worker@buildpro.com | 123456 |
+| Logistic | logistic@buildpro.com | 123456 |
+| Vendor | vendor@buildpro.com | 123456 |
+
+---
+
 ## 🚀 Instalasi
 
 ### 1️⃣ Clone Repository
@@ -803,24 +895,6 @@ Kami sangat terbuka dengan kontribusi! Berikut cara berkontribusi:
 
 ---
 
-## 📝 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 👥 Team
-
-**BuildPro Development Team**
-
-- Project Lead & Backend Architect
-- Frontend Developer
-- DevOps Engineer
-- Database Administrator
-- UI/UX Designer
-
----
-
 ## 🙏 Acknowledgments
 
 - [React](https://reactjs.org/) - Frontend framework
@@ -841,13 +915,5 @@ Jika ada pertanyaan atau masalah:
 - 📚 Documentation: [Wiki](https://github.com/icannns/buildpro/wiki)
 
 ---
-
-<div align="center">
-
-**[⬆ Back to Top](#-buildpro---construction-management-system)**
-
-Made with ❤️ by BuildPro Team
-
-**BuildPro** - *Building Better Together* 🏗️✨
 
 </div>

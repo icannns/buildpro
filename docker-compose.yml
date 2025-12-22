@@ -10,6 +10,8 @@ services:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
+      # Auto-run schema with all tables and enhancements on first startup
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     networks:
       - buildpro-network
     healthcheck:

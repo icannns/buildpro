@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, message } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Select, message } from 'antd';
 import dayjs from 'dayjs';
 
 const ProjectModal = ({ visible, onClose, onSubmit, mode, initialData, loading }) => {
@@ -14,7 +14,11 @@ const ProjectModal = ({ visible, onClose, onSubmit, mode, initialData, loading }
                 contractor: initialData.contractor,
                 budget: initialData.budget,
                 start_date: initialData.start_date ? dayjs(initialData.start_date) : null,
-                end_date: initialData.end_date ? dayjs(initialData.end_date) : null
+                end_date: initialData.end_date ? dayjs(initialData.end_date) : null,
+                project_type: initialData.project_type || 'Konstruksi Baru',
+                project_manager: initialData.project_manager,
+                current_phase: initialData.current_phase || 'Perencanaan',
+                planned_progress: initialData.planned_progress || 0
             });
         } else if (visible && mode === 'create') {
             // Reset form for create mode
@@ -117,6 +121,56 @@ const ProjectModal = ({ visible, onClose, onSubmit, mode, initialData, loading }
                         style={{ width: '100%' }}
                         format="DD MMMM YYYY"
                         placeholder="Pilih deadline"
+                    />
+                </Form.Item>
+
+                <Form.Item
+                    name="project_type"
+                    label="Jenis Proyek"
+                    initialValue="Konstruksi Baru"
+                >
+                    <Select placeholder="Pilih jenis proyek">
+                        <Select.Option value="Konstruksi Baru">Konstruksi Baru</Select.Option>
+                        <Select.Option value="Renovasi">Renovasi</Select.Option>
+                        <Select.Option value="Rehabilitasi">Rehabilitasi</Select.Option>
+                        <Select.Option value="Pembongkaran">Pembongkaran</Select.Option>
+                        <Select.Option value="Lain-lain">Lain-lain</Select.Option>
+                    </Select>
+                </Form.Item>
+
+                <Form.Item
+                    name="project_manager"
+                    label="Penanggung Jawab Proyek / Project Manager"
+                >
+                    <Input placeholder="contoh: Budi Santoso" />
+                </Form.Item>
+
+                <Form.Item
+                    name="current_phase"
+                    label="Tahap Proyek Saat Ini"
+                    initialValue="Perencanaan"
+                >
+                    <Select placeholder="Pilih tahap proyek">
+                        <Select.Option value="Perencanaan">Perencanaan</Select.Option>
+                        <Select.Option value="Fondasi">Fondasi</Select.Option>
+                        <Select.Option value="Struktur">Struktur</Select.Option>
+                        <Select.Option value="Finishing">Finishing</Select.Option>
+                        <Select.Option value="Selesai">Selesai</Select.Option>
+                    </Select>
+                </Form.Item>
+
+                <Form.Item
+                    name="planned_progress"
+                    label="Progress yang Direncanakan (%)"
+                    initialValue={0}
+                >
+                    <InputNumber
+                        style={{ width: '100%' }}
+                        min={0}
+                        max={100}
+                        formatter={value => `${value}%`}
+                        parser={value => value.replace('%', '')}
+                        placeholder="contoh: 50"
                     />
                 </Form.Item>
             </Form>

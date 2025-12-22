@@ -68,12 +68,42 @@ app.get('/projects/:id', async (req, res) => {
 // POST /projects - Create new project
 app.post('/projects', async (req, res) => {
     try {
-        const { name, progress, status, location, contractor, budget, start_date, end_date } = req.body;
+        const {
+            name, progress, status, location, contractor, budget, start_date, end_date,
+            project_type, project_manager, current_phase, planned_progress
+        } = req.body;
+
+        // Auto-calculate planned_progress if not provided
+        let calculatedPlannedProgress = planned_progress || 0;
+        if (!planned_progress && start_date && end_date) {
+            const startDate = new Date(start_date);
+            const endDate = new Date(end_date);
+            const today = new Date();
+            const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+            const daysPassed = (today - startDate) / (1000 * 60 * 60 * 24);
+            calculatedPlannedProgress = Math.min(100, Math.max(0, Math.round((daysPassed / totalDays) * 100)));
+        }
 
         const [result] = await db.execute(`
-      INSERT INTO projects (name, progress, status, location, contractor, budget, start_date, end_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [name, progress || 0, status || 'Active', location, contractor, budget, start_date, end_date]);
+      INSERT INTO projects (
+        name, progress, status, location, contractor, budget, start_date, end_date,
+        project_type, project_manager, current_phase, planned_progress
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+            name,
+            progress || 0,
+            status || 'Active',
+            location,
+            contractor,
+            budget,
+            start_date,
+            end_date,
+            project_type || 'Konstruksi Baru',
+            project_manager,
+            current_phase || 'Perencanaan',
+            calculatedPlannedProgress
+        ]);
 
         // AUTOMATICALLY CREATE PAYMENT TERMS
         const projectId = result.insertId;
@@ -128,7 +158,10 @@ app.post('/projects', async (req, res) => {
 app.put('/projects/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, location, contractor, budget, start_date, end_date } = req.body;
+        const {
+            name, location, contractor, budget, start_date, end_date,
+            project_type, project_manager, current_phase, planned_progress
+        } = req.body;
 
         // Check if project exists
         const [existing] = await db.execute('SELECT * FROM projects WHERE id = ?', [id]);
@@ -142,9 +175,20 @@ app.put('/projects/:id', async (req, res) => {
         // Update project
         await db.execute(`
             UPDATE projects 
-            SET name = ?, location = ?, contractor = ?, budget = ?, start_date = ?, end_date = ?
+            SET name = ?, location = ?, contractor = ?, budget = ?, start_date = ?, end_date = ?,
+                project_type = ?,
+                project_manager = ?,
+                current_phase = ?,
+                planned_progress = ?
             WHERE id = ?
-        `, [name, location, contractor, budget, start_date, end_date, id]);
+        `, [
+            name, location, contractor, budget, start_date, end_date,
+            project_type || 'Konstruksi Baru',
+            project_manager,
+            current_phase || 'Perencanaan',
+            planned_progress || 0,
+            id
+        ]);
 
         // Get updated project
         const [updated] = await db.execute('SELECT * FROM projects WHERE id = ?', [id]);
@@ -184,10 +228,17 @@ app.post('/update-progress', async (req, res) => {
             });
         }
 
-        // Update project progress
+        // Auto-update current_phase based on progress
+        let currentPhase = 'Perencanaan';
+        if (progress > 0 && progress <= 20) currentPhase = 'Fondasi';
+        else if (progress > 20 && progress <= 60) currentPhase = 'Struktur';
+        else if (progress > 60 && progress < 100) currentPhase = 'Finishing';
+        else if (progress >= 100) currentPhase = 'Selesai';
+
+        // Update project progress and phase
         const [updateResult] = await db.execute(
-            'UPDATE projects SET progress = ? WHERE id = ?',
-            [progress, project_id]
+            'UPDATE projects SET progress = ?, current_phase = ? WHERE id = ?',
+            [progress, currentPhase, project_id]
         );
 
         if (updateResult.affectedRows === 0) {
@@ -583,6 +634,210 @@ app.post('/progress-history', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error updating progress history',
+            error: error.message
+        });
+    }
+});
+
+// =====================================================
+// BUDGET SUMMARY ENDPOINT
+// =====================================================
+
+// GET /projects/:id/budget-summary - Get budget summary for a project
+app.get('/projects/:id/budget-summary', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Get project budget
+        const [projectRows] = await db.execute('SELECT budget FROM projects WHERE id = ?', [id]);
+        if (projectRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found'
+            });
+        }
+
+        const totalBudget = parseFloat(projectRows[0].budget || 0);
+
+        // Get paid amount from payment_terms
+        const [paymentRows] = await db.execute(`
+            SELECT 
+                COALESCE(SUM(CASE WHEN status = 'PAID' THEN amount ELSE 0 END), 0) as paid_amount,
+                COALESCE(SUM(CASE WHEN status = 'PENDING' THEN amount ELSE 0 END), 0) as pending_amount
+            FROM payment_terms
+            WHERE project_id = ?
+        `, [id]);
+
+        const paidAmount = parseFloat(paymentRows[0].paid_amount || 0);
+        const pendingAmount = parseFloat(paymentRows[0].pending_amount || 0);
+        const remainingBudget = totalBudget - paidAmount;
+
+        res.json({
+            success: true,
+            data: {
+                total_budget: totalBudget,
+                used_budget: paidAmount,
+                pending_budget: pendingAmount,
+                remaining_budget: remainingBudget,
+                percentage_used: totalBudget > 0 ? Math.round((paidAmount / totalBudget) * 100) : 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching budget summary:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching budget summary',
+            error: error.message
+        });
+    }
+});
+
+// =====================================================
+// TIMELINE NOTES ENDPOINTS
+// =====================================================
+
+// GET /timeline-notes/:project_id - Get all timeline notes for a project
+app.get('/timeline-notes/:project_id', async (req, res) => {
+    try {
+        const { project_id } = req.params;
+
+        const [rows] = await db.execute(`
+            SELECT * FROM timeline_notes
+            WHERE project_id = ?
+            ORDER BY note_date DESC
+        `, [project_id]);
+
+        res.json({
+            success: true,
+            count: rows.length,
+            data: rows
+        });
+
+    } catch (error) {
+        console.error('Error fetching timeline notes:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching timeline notes',
+            error: error.message
+        });
+    }
+});
+
+// POST /timeline-notes - Add new timeline note
+app.post('/timeline-notes', async (req, res) => {
+    try {
+        const { project_id, note_date, phase, milestone, note, note_type } = req.body;
+
+        if (!project_id || !note_date) {
+            return res.status(400).json({
+                success: false,
+                message: 'project_id and note_date are required'
+            });
+        }
+
+        // Verify project exists
+        const [projectRows] = await db.execute('SELECT * FROM projects WHERE id = ?', [project_id]);
+        if (projectRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Project not found'
+            });
+        }
+
+        const [result] = await db.execute(`
+            INSERT INTO timeline_notes (project_id, note_date, phase, milestone, note, note_type)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [project_id, note_date, phase, milestone, note, note_type || 'info']);
+
+        const [createdNote] = await db.execute('SELECT * FROM timeline_notes WHERE id = ?', [result.insertId]);
+
+        res.status(201).json({
+            success: true,
+            message: 'Timeline note created successfully',
+            data: createdNote[0]
+        });
+
+    } catch (error) {
+        console.error('Error creating timeline note:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating timeline note',
+            error: error.message
+        });
+    }
+});
+
+// PUT /timeline-notes/:id - Update timeline note
+app.put('/timeline-notes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { note_date, phase, milestone, note, note_type } = req.body;
+
+        const [existing] = await db.execute('SELECT * FROM timeline_notes WHERE id = ?', [id]);
+        if (existing.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Timeline note not found'
+            });
+        }
+
+        await db.execute(`
+            UPDATE timeline_notes
+            SET note_date = ?, phase = ?, milestone = ?, note = ?, note_type = ?
+            WHERE id = ?
+        `, [
+            note_date || existing[0].note_date,
+            phase || existing[0].phase,
+            milestone || existing[0].milestone,
+            note || existing[0].note,
+            note_type || existing[0].note_type,
+            id
+        ]);
+
+        const [updated] = await db.execute('SELECT * FROM timeline_notes WHERE id = ?', [id]);
+
+        res.json({
+            success: true,
+            message: 'Timeline note updated successfully',
+            data: updated[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating timeline note:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating timeline note',
+            error: error.message
+        });
+    }
+});
+
+// DELETE /timeline-notes/:id - Delete timeline note
+app.delete('/timeline-notes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const [existing] = await db.execute('SELECT * FROM timeline_notes WHERE id = ?', [id]);
+        if (existing.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Timeline note not found'
+            });
+        }
+
+        await db.execute('DELETE FROM timeline_notes WHERE id = ?', [id]);
+
+        res.json({
+            success: true,
+            message: 'Timeline note deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Error deleting timeline note:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting timeline note',
             error: error.message
         });
     }

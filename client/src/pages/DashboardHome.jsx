@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Progress, Button, Typography, Space, Tag, Divider, Row, Col, Statistic, Spin, Alert, message, Modal, InputNumber, Drawer, Timeline, Tooltip } from 'antd';
+import { Card, Progress, Button, Typography, Space, Tag, Divider, Row, Col, Statistic, Spin, Alert, message, Modal, InputNumber, Drawer, Timeline, Tooltip, Badge, Switch } from 'antd';
 import {
     BuildOutlined,
     CalendarOutlined,
@@ -10,7 +10,11 @@ import {
     CheckCircleOutlined,
     ClockCircleOutlined,
     LineChartOutlined,
-    EditOutlined
+    EditOutlined,
+    SyncOutlined,
+    BellOutlined,
+    ProjectOutlined,
+    DollarOutlined
 } from '@ant-design/icons';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -35,15 +39,113 @@ function DashboardHome() {
     const [scurveDrawerVisible, setScurveDrawerVisible] = useState(false);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editModalLoading, setEditModalLoading] = useState(false);
+    const [budgetSummary, setBudgetSummary] = useState(null);
+    const [timelineNotes, setTimelineNotes] = useState([]);
+    const [dailyLogs, setDailyLogs] = useState([]);
+
+    // Real-time update states
+    const [previousProgress, setPreviousProgress] = useState(0);
+    const [isAutoRefreshing, setIsAutoRefreshing] = useState(true);
+    const [lastUpdateTime, setLastUpdateTime] = useState(null);
 
     useEffect(() => {
-        // Project data comes from context, no need to fetch
-    }, []);
+        if (project?.id) {
+            fetchBudgetSummary();
+            fetchTimelineNotes();
+            fetchDailyLogs();
+        }
+    }, [project?.id, project?.progress]); // Re-fetch when progress changes
 
     const fetchProjectData = async () => {
         // Refresh active project from context
         await refreshActiveProject();
     };
+
+    const fetchBudgetSummary = async () => {
+        if (!project?.id) return;
+
+        // Always calculate from project progress for accurate real-time data
+        const totalBudget = parseFloat(project.budget || 0);
+        const progressPercent = parseFloat(project.progress || 0) / 100;
+        const usedBudget = totalBudget * progressPercent;
+
+        setBudgetSummary({
+            total_budget: totalBudget,
+            used_budget: usedBudget,
+            remaining_budget: totalBudget - usedBudget,
+            percentage_used: project.progress || 0
+        });
+    };
+
+    const fetchTimelineNotes = async () => {
+        if (!project?.id) return;
+        try {
+            const response = await api.get(`/timeline-notes/${project.id}`);
+            if (response.data.success) {
+                setTimelineNotes(response.data.data);
+            }
+        } catch (err) {
+            console.error('Error fetching timeline notes:', err);
+        }
+    };
+
+    const fetchDailyLogs = async () => {
+        if (!project?.id) return;
+        try {
+            const response = await api.get(`/daily-logs/${project.id}`);
+            if (response.data.success) {
+                setDailyLogs(response.data.data);
+            }
+        } catch (err) {
+            console.error('Error fetching daily logs:', err);
+        }
+    };
+
+    // Auto-refresh mechanism - polls every 10 seconds
+    useEffect(() => {
+        if (!isAutoRefreshing || !project?.id) return;
+
+        const interval = setInterval(async () => {
+            try {
+                await refreshActiveProject();
+                await fetchBudgetSummary();
+                await fetchTimelineNotes();
+                await fetchDailyLogs();
+                setLastUpdateTime(new Date());
+            } catch (err) {
+                console.error('Auto-refresh error:', err);
+            }
+        }, 10000); // 10 seconds
+
+        return () => clearInterval(interval);
+    }, [isAutoRefreshing, project?.id]);
+
+    // Change detection - show notification when progress changes
+    useEffect(() => {
+        if (!project) return;
+
+        const currentProgress = parseFloat(project.progress || 0);
+
+        // Only show notification if progress actually changed and it's not the first load
+        if (previousProgress > 0 && currentProgress !== previousProgress) {
+            const isIncrease = currentProgress > previousProgress;
+            const diff = Math.abs(currentProgress - previousProgress).toFixed(1);
+
+            message.success({
+                content: (
+                    <span>
+                        <BellOutlined style={{ marginRight: 8 }} />
+                        Progress {isIncrease ? 'naik' : 'turun'}: {previousProgress}% → {currentProgress}%
+                        ({isIncrease ? '+' : '-'}{diff}%)
+                    </span>
+                ),
+                duration: 5,
+                icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />
+            });
+        }
+
+        setPreviousProgress(currentProgress);
+    }, [project?.progress]);
 
     const showUpdateModal = () => {
         if (project) {
@@ -59,6 +161,10 @@ function DashboardHome() {
         setEditModalLoading(false);
         if (result.success) {
             setEditModalVisible(false);
+            // Refresh all data to show updated fields
+            await fetchBudgetSummary();
+            await fetchDailyLogs();
+            message.success('Project berhasil diupdate!');
         }
     };
 
@@ -102,8 +208,11 @@ function DashboardHome() {
         setIsModalVisible(false);
     };
 
-    const showDetailDrawer = () => {
+    const showDetailDrawer = async () => {
         setDrawerVisible(true);
+        // Refresh budget summary when drawer opens to show latest data
+        await fetchBudgetSummary();
+        await fetchDailyLogs();
     };
 
     const closeDetailDrawer = () => {
@@ -350,7 +459,30 @@ function DashboardHome() {
                     </Space>
                 }
                 extra={
-                    <Space>
+                    <Space size="large">
+                        {/* Auto-refresh toggle */}
+                        <Tooltip title={isAutoRefreshing ? 'Auto-refresh aktif (10s)' : 'Auto-refresh nonaktif'}>
+                            <Space>
+                                <Badge status={isAutoRefreshing ? 'processing' : 'default'} />
+                                <SyncOutlined
+                                    spin={isAutoRefreshing}
+                                    style={{ color: isAutoRefreshing ? '#1890ff' : '#d9d9d9' }}
+                                />
+                                <Switch
+                                    size="small"
+                                    checked={isAutoRefreshing}
+                                    onChange={(checked) => setIsAutoRefreshing(checked)}
+                                />
+                                {lastUpdateTime && isAutoRefreshing && (
+                                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                                        {lastUpdateTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                    </Text>
+                                )}
+                            </Space>
+                        </Tooltip>
+
+                        <Divider type="vertical" />
+
                         <CalendarOutlined />
                         <Text type="secondary">Deadline: {formatDate(project.end_date)}</Text>
                         {(() => {
@@ -407,6 +539,70 @@ function DashboardHome() {
 
                     <div>
                         <Title level={5} style={{ marginBottom: '16px' }}>Progress Pengerjaan</Title>
+
+                        {/* Progress Rencana vs Aktual */}
+                        <Row gutter={16} style={{ marginBottom: '16px' }}>
+                            <Col span={12}>
+                                <Card size="small" style={{ backgroundColor: '#e6f7ff', borderColor: '#1890ff' }}>
+                                    <Statistic
+                                        title="Progress Rencana"
+                                        value={project.planned_progress || 0}
+                                        suffix="%"
+                                        valueStyle={{ color: '#1890ff' }}
+                                    />
+                                </Card>
+                            </Col>
+                            <Col span={12}>
+                                <Card size="small" style={{ backgroundColor: '#f6ffed', borderColor: '#52c41a' }}>
+                                    <Statistic
+                                        title="Progress Aktual"
+                                        value={project.progress || 0}
+                                        suffix="%"
+                                        valueStyle={{ color: '#52c41a' }}
+                                    />
+                                </Card>
+                            </Col>
+                        </Row>
+
+                        {/* Indikator Keterlambatan */}
+                        {(() => {
+                            const plannedProgress = parseFloat(project.planned_progress || 0);
+                            const actualProgress = parseFloat(project.progress || 0);
+                            const delay = plannedProgress - actualProgress;
+
+                            if (delay > 0) {
+                                return (
+                                    <Alert
+                                        message="Indikator Keterlambatan"
+                                        description={`Tertinggal ${delay.toFixed(1)}% dari rencana`}
+                                        type="warning"
+                                        showIcon
+                                        style={{ marginBottom: '16px' }}
+                                    />
+                                );
+                            } else if (delay < 0) {
+                                return (
+                                    <Alert
+                                        message="Indikator Progress"
+                                        description={`Lebih cepat ${Math.abs(delay).toFixed(1)}% dari rencana`}
+                                        type="success"
+                                        showIcon
+                                        style={{ marginBottom: '16px' }}
+                                    />
+                                );
+                            } else {
+                                return (
+                                    <Alert
+                                        message="Indikator Progress"
+                                        description="Sesuai dengan rencana"
+                                        type="info"
+                                        showIcon
+                                        style={{ marginBottom: '16px' }}
+                                    />
+                                );
+                            }
+                        })()}
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
                             <Progress
                                 type="circle"
@@ -564,7 +760,7 @@ function DashboardHome() {
                 open={drawerVisible}
                 width={600}
             >
-                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                     <div>
                         <Title level={4}>{project?.name}</Title>
                         <Tag color="processing">{project?.status}</Tag>
@@ -572,64 +768,189 @@ function DashboardHome() {
 
                     <Divider />
 
-                    <div>
-                        <Title level={5}>Informasi Lengkap</Title>
-                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                            <Text><strong>ID Proyek:</strong> #{project?.id}</Text>
-                            <Text><strong>Lokasi:</strong> {project?.location}</Text>
-                            <Text><strong>Kontraktor:</strong> {project?.contractor}</Text>
-                            <Text><strong>Budget:</strong> {formatCurrency(project?.budget)}</Text>
-                            <Text><strong>Tanggal Mulai:</strong> {formatDate(project?.start_date)}</Text>
-                            <Text><strong>Deadline:</strong> {formatDate(project?.end_date)}</Text>
-                            <Text><strong>Progress:</strong> {project?.progress}%</Text>
+                    {/* Informasi Lengkap Card */}
+                    <Card
+                        title={
+                            <Space>
+                                <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                                <Text strong>Informasi Lengkap</Text>
+                            </Space>
+                        }
+                        size="small"
+                        style={{ marginBottom: 16 }}
+                    >
+                        <Row gutter={[16, 8]}>
+                            <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>ID Proyek</Text>
+                                <Text strong>#{project?.id}</Text>
+                            </Col>
+                            <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Lokasi</Text>
+                                <Text strong>{project?.location}</Text>
+                            </Col>
+                            <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Kontraktor</Text>
+                                <Text strong>{project?.contractor}</Text>
+                            </Col>
+                            <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Budget</Text>
+                                <Text strong style={{ color: '#1890ff' }}>{formatCurrency(project?.budget)}</Text>
+                            </Col>
+                            <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Tanggal Mulai</Text>
+                                <Text strong>{formatDate(project?.start_date)}</Text>
+                            </Col>
+                            <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Deadline</Text>
+                                <Text strong>{formatDate(project?.end_date)}</Text>
+                            </Col>
+                            <Col span={24}>
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Progress Aktual</Text>
+                                <Progress
+                                    percent={project?.progress}
+                                    strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
+                                    size="small"
+                                />
+                            </Col>
+                        </Row>
+                    </Card>
+
+                    {/* Detail Proyek Card */}
+                    <Card
+                        title={
+                            <Space>
+                                <ProjectOutlined style={{ color: '#52c41a' }} />
+                                <Text strong>Detail Proyek</Text>
+                            </Space>
+                        }
+                        size="small"
+                        style={{ marginBottom: 16 }}
+                    >
+                        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text type="secondary">Jenis Proyek</Text>
+                                <Tag color="blue" style={{ margin: 0 }}>{project?.project_type || 'Konstruksi Baru'}</Tag>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text type="secondary">Penanggung Jawab</Text>
+                                <Text strong>{project?.project_manager || '-'}</Text>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text type="secondary">Tahap Saat Ini</Text>
+                                <Tag color="blue" style={{ margin: 0 }}>{project?.current_phase || 'Perencanaan'}</Tag>
+                            </div>
                         </Space>
-                    </div>
+                    </Card>
 
-                    <Divider />
+                    {/* Status Anggaran Card */}
+                    <Card
+                        title={
+                            <Space>
+                                <DollarOutlined style={{ color: '#faad14' }} />
+                                <Text strong>Status Anggaran</Text>
+                            </Space>
+                        }
+                        size="small"
+                        style={{ marginBottom: 16 }}
+                    >
+                        {budgetSummary ? (
+                            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: '#e6f7ff', borderRadius: 4 }}>
+                                    <Text>Anggaran terpakai</Text>
+                                    <Text strong style={{ color: '#1890ff' }}>{formatCurrency(budgetSummary.used_budget)}</Text>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: '#f6ffed', borderRadius: 4 }}>
+                                    <Text>Sisa anggaran</Text>
+                                    <Text strong style={{ color: '#52c41a' }}>{formatCurrency(budgetSummary.remaining_budget)}</Text>
+                                </div>
+                                <div>
+                                    <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+                                        Progress Penggunaan: {budgetSummary.percentage_used}%
+                                    </Text>
+                                    <Progress
+                                        percent={budgetSummary.percentage_used}
+                                        strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
+                                        size="default"
+                                    />
+                                </div>
+                            </Space>
+                        ) : (
+                            <Text type="secondary">Loading budget info...</Text>
+                        )}
+                    </Card>
 
-                    <div>
-                        <Title level={5}>Timeline Progress</Title>
-                        <Timeline
-                            mode="left"
-                            items={[
-                                {
-                                    label: '1 Sep 2025',
-                                    children: 'Proyek dimulai',
-                                    color: 'green',
-                                    dot: <CheckCircleOutlined />
-                                },
-                                {
-                                    label: '10 Sep 2025',
-                                    children: 'Fondasi selesai 100%',
-                                    color: 'green',
-                                    dot: <CheckCircleOutlined />
-                                },
-                                {
-                                    label: '25 Sep 2025',
-                                    children: 'Struktur bangunan dimulai',
-                                    color: 'green',
-                                    dot: <CheckCircleOutlined />
-                                },
-                                {
-                                    label: '15 Okt 2025',
-                                    children: 'Struktur 50% - Progress update',
-                                    color: 'blue',
-                                    dot: <ClockCircleOutlined />
-                                },
-                                {
-                                    label: '24 Nov 2025',
-                                    children: `Progress mencapai ${project?.progress}%`,
-                                    color: 'blue',
-                                    dot: <ClockCircleOutlined />
-                                },
-                                {
-                                    label: '31 Des 2025',
-                                    children: 'Target deadline penyelesaian',
-                                    color: 'gray'
-                                }
-                            ]}
-                        />
-                    </div>
+                    {/* Timeline Card */}
+                    <Card
+                        title={
+                            <Space>
+                                <CalendarOutlined style={{ color: '#722ed1' }} />
+                                <Text strong>Timeline Progress - Log Harian</Text>
+                            </Space>
+                        }
+                        size="small"
+                    >
+                        {dailyLogs.length > 0 ? (
+                            <Timeline
+                                items={[...dailyLogs].sort((a, b) => new Date(a.log_date) - new Date(b.log_date)).map(log => {
+                                    const progressAdded = parseFloat(log.progress_added || 0);
+                                    let color = 'blue';
+                                    let dot = <ClockCircleOutlined />;
+
+                                    if (progressAdded > 0) {
+                                        color = 'green';
+                                        dot = <CheckCircleOutlined />;
+                                    }
+
+                                    return {
+                                        children: (
+                                            <div style={{
+                                                padding: '8px 12px',
+                                                backgroundColor: '#fafafa',
+                                                borderRadius: 6,
+                                                marginBottom: 8,
+                                                border: '1px solid #f0f0f0'
+                                            }}>
+                                                <div style={{ marginBottom: 4 }}>
+                                                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                        {formatDate(log.log_date)}
+                                                    </Text>
+                                                </div>
+                                                <div>
+                                                    <Text strong>{log.description}</Text>
+                                                    <Tag color="green" style={{ marginLeft: 8 }}>+{progressAdded}%</Tag>
+                                                </div>
+                                                {log.worker_name && (
+                                                    <div style={{ marginTop: 4 }}>
+                                                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                            👷 {log.worker_name}
+                                                        </Text>
+                                                    </div>
+                                                )}
+                                                {log.notes && (
+                                                    <div style={{ marginTop: 6, padding: '8px 10px', backgroundColor: '#fff', borderRadius: 4, borderLeft: '3px solid #1890ff' }}>
+                                                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                                                            💬 {log.notes}
+                                                        </Text>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ),
+                                        color: color,
+                                        dot: dot
+                                    };
+                                })}
+                            />
+                        ) : (
+                            <Alert
+                                message="Belum ada log harian"
+                                description="Tambahkan log harian untuk melihat timeline progress"
+                                type="info"
+                                showIcon
+                            />
+                        )}
+                    </Card>
+
+
                 </Space>
             </Drawer>
 
@@ -721,7 +1042,7 @@ function DashboardHome() {
                 initialData={project}
                 loading={editModalLoading}
             />
-        </div>
+        </div >
     );
 }
 

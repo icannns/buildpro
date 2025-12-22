@@ -45,6 +45,8 @@ coverage/
 *.temp
 temp/
 tmp/
+temp_*.js
+test_*.js
 
 # Gemini artifacts (local AI assistant files)
 .gemini/

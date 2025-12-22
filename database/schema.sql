@@ -1,4 +1,5 @@
 
+
 CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -9,9 +10,14 @@ CREATE TABLE IF NOT EXISTS projects (
     budget DECIMAL(15,2),
     start_date DATE,
     deadline DATE,
+    project_type VARCHAR(100) DEFAULT 'Konstruksi Baru' COMMENT 'Jenis proyek: Konstruksi Baru, Renovasi, dll',
+    project_manager VARCHAR(255) COMMENT 'Penanggung jawab proyek / Project Manager',
+    current_phase VARCHAR(100) DEFAULT 'Perencanaan' COMMENT 'Tahap proyek: Perencanaan, Fondasi, Struktur, Finishing, Selesai',
+    planned_progress DECIMAL(5,2) DEFAULT 0 COMMENT 'Progress yang direncanakan untuk periode ini',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
 
 -- Daily Logs table - for tracking daily progress by workers
 CREATE TABLE IF NOT EXISTS daily_logs (
@@ -290,6 +296,25 @@ BEGIN
     END IF;
 END//
 DELIMITER ;
+
+-- =====================================================
+-- TIMELINE NOTES TABLE
+-- =====================================================
+
+-- Timeline Notes - for tracking project timeline events and remarks
+CREATE TABLE IF NOT EXISTS timeline_notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    project_id INT NOT NULL,
+    note_date DATE NOT NULL,
+    phase VARCHAR(100) COMMENT 'Project phase: Fondasi, Struktur, Finishing, etc',
+    milestone VARCHAR(255) COMMENT 'Milestone description',
+    note TEXT COMMENT 'Remarks or delay reasons, e.g. "Material belum datang"',
+    note_type VARCHAR(50) DEFAULT 'info' COMMENT 'Type: info, warning, delay, success',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    INDEX idx_project_date (project_id, note_date)
+);
 
 -- =====================================================
 -- COMPLETE

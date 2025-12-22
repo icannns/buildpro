@@ -9,7 +9,7 @@ function authMiddleware(req, res, next) {
     const fullPath = req.originalUrl || req.url;
 
     if (fullPath.startsWith('/api/auth/')) {
-        console.log('[Auth Middleware] Skipping auth for public endpoint:', fullPath);
+        // console.log('[Auth Middleware] Skipping auth for public endpoint:', fullPath);
         return next();
     }
 
@@ -22,13 +22,13 @@ function authMiddleware(req, res, next) {
         try {
             const decoded = jwt.verify(token, JWT_SECRET);
             req.user = decoded; // Attach user info to request
-            console.log('[Auth Middleware] User authenticated:', req.user.email, 'Role:', req.user.role);
+            // console.log('[Auth Middleware] User authenticated:', req.user.email, 'Role:', req.user.role);
         } catch (error) {
-            console.warn('[Auth Middleware] Invalid token, but allowing in dev mode:', error.message);
+            // console.warn('[Auth Middleware] Invalid token, but allowing in dev mode:', error.message);
             // In dev mode, we still allow the request but without user info
         }
     } else {
-        console.warn('[Auth Middleware] No token provided');
+        // console.warn('[Auth Middleware] No token provided');
     }
 
     next();

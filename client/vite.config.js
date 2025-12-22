@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    open: true
+    host: true,
+    open: false, // Disable auto-open in Docker to prevent xdg-open errors
+    strictPort: false
   }
 })
