@@ -474,14 +474,11 @@ mysql -u root -p
 CREATE DATABASE buildpro_db;
 USE buildpro_db;
 
-# Import schema
-source database/schema.sql;
-
-# Insert sample data (opsional)
-source database/seed.sql;
+# Insert sample data (sudah termasuk dalam schema.sql)
+# source database/schema.sql sudah otomatis seeding data awal
 ```
 
-Lihat [DATABASE_SETUP.md](DATABASE_SETUP.md) untuk dokumentasi lengkap.
+Untuk setup otomatis dengan Docker, cukup jalankan `docker-compose up -d`.
 
 ---
 
@@ -550,7 +547,6 @@ buildpro/
 ├── 📄 .env.example              # Environment variables template
 ├── 📄 .gitignore
 ├── 📄 package.json              # Root package.json
-├── 📄 DATABASE_SETUP.md         # Database setup guide
 └── 📄 README.md                 # This file
 ```
 
@@ -780,13 +776,10 @@ npm run format
 
 ```bash
 # Build production images
-docker-compose -f docker-compose.prod.yml build
+docker-compose build
 
 # Run in production mode
-docker-compose -f docker-compose.prod.yml up -d
-
-# Setup NGINX reverse proxy
-# Configure SSL dengan Let's Encrypt
+docker-compose up -d
 ```
 
 ---
