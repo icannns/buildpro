@@ -5,7 +5,7 @@ const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-const BUDGET_SERVICE_URL = process.env.BUDGET_SERVICE_URL || 'http://localhost:5001';
+const BUDGET_SERVICE_URL = process.env.BUDGET_SERVICE_URL || 'http://budget-service:5001';
 
 // Middleware
 app.use(cors());

@@ -1,0 +1,456 @@
+================================================================================
+                    BUILDPRO - SKRIP PRESENTASI DEMO
+================================================================================
+
+PERSIAPAN SEBELUM MULAI:
+- Docker containers sudah running (docker-compose up -d)
+- Browser 1: Admin Dashboard (admin@buildpro.com sudah login)
+- Browser 2: Siap untuk login Worker
+- Auto-Refresh sudah ON di dashboard
+
+================================================================================
+1. PEMBUKAAN (30 detik)
+================================================================================
+
+"Selamat pagi/siang, Pak/Bu Dosen dan teman-teman sekalian.
+
+Hari ini saya akan mempresentasikan BuildPro, sebuah sistem manajemen 
+konstruksi dan renovasi yang kami kembangkan menggunakan arsitektur 
+microservices.
+
+Yang membuat BuildPro unik adalah, kami mengimplementasikan 4 bahasa 
+pemrograman berbeda dalam satu ekosistem: Node.js, Java, Python, dan Go. 
+Ini mendemonstrasikan konsep polyglot microservices dan bagaimana berbagai 
+teknologi bisa bekerja sama dalam satu sistem terintegrasi."
+
+
+================================================================================
+2. ARSITEKTUR SISTEM (1 menit)
+================================================================================
+
+[Buka README, scroll ke diagram arsitektur]
+
+"Mari kita lihat arsitektur BuildPro. Sistem ini terdiri dari 9 komponen 
+utama yang semuanya berjalan dalam container Docker:
+
+Pertama, di lapisan frontend, kita punya React Client yang dibangun dengan 
+Vite untuk performa optimal.
+
+Kedua, semua request masuk melalui API Gateway yang dibuat dengan Node.js. 
+Gateway ini bertugas routing request ke service yang tepat.
+
+Ketiga, kita punya 5 microservices dengan bahasa berbeda:
+- Auth Service menggunakan Node.js untuk autentikasi JWT
+- Project Service, juga Node.js, mengelola timeline proyek dan log harian
+- Budget Service menggunakan Java untuk manajemen keuangan dan termin pembayaran
+- Material Service berbasis Python Flask untuk inventory management
+- Dan Vendor Service menggunakan Go untuk portal supplier
+
+Keempat, ada GraphQL Server untuk query layer yang lebih fleksibel.
+
+Dan terakhir, semua service terhubung ke MySQL Database sebagai single 
+source of truth.
+
+Semua ini diorkestrasi oleh Docker Compose sehingga deployment sangat mudah."
+
+
+================================================================================
+3. QUICK START DEMO (30 detik)
+================================================================================
+
+[Tampilkan terminal]
+
+"Salah satu keunggulan menggunakan Docker adalah kemudahan deployment. 
+Untuk menjalankan seluruh aplikasi ini dengan 9 container, kita hanya 
+perlu satu command:
+
+docker-compose up -d
+
+[Ketik command, atau tunjukkan containers yang sudah running]
+
+Dalam waktu kurang dari 1 menit, semua 9 containers sudah running dan 
+aplikasi siap digunakan. Ini adalah production-ready setup yang bisa 
+di-deploy di mana saja."
+
+
+================================================================================
+4. DASHBOARD OVERVIEW (1 menit)
+================================================================================
+
+[Switch ke Browser - Admin Dashboard]
+
+"Baik, sekarang kita masuk ke aplikasi. Ini adalah dashboard admin.
+
+Di bagian atas, kita bisa lihat ringkasan sistem:
+- Jumlah proyek aktif
+- Total budget keseluruhan
+- Rata-rata completion rate
+- Jumlah material yang tersedia
+
+[Scroll ke bawah]
+
+Yang penting di sini adalah fitur Auto-Refresh. Anda lihat toggle ini? 
+Saat ini sedang aktif, yang berarti dashboard akan otomatis refresh 
+setiap 10 detik tanpa perlu reload manual. Ini memastikan data yang 
+ditampilkan selalu real-time."
+
+
+================================================================================
+5. PROJECT DETAIL (1.5 menit)
+================================================================================
+
+[Klik salah satu project card - misal "Pembangunan Villa Bali"]
+
+"Mari kita lihat detail proyek Pembangunan Villa Bali ini.
+
+[Section: Informasi Lengkap]
+Di bagian pertama, ada perbandingan Progress Rencana versus Progress Aktual. 
+Ini membantu kita memantau apakah proyek berjalan sesuai jadwal atau ada 
+keterlambatan.
+
+[Section: Detail Proyek]
+Di sini tercatat informasi lengkap seperti jenis proyek, siapa penanggung 
+jawabnya, lokasi, dan fase proyek saat ini.
+
+[Section: Status Anggaran]
+Nah, ini yang menarik. Budget Service yang dibuat dengan Java secara 
+otomatis menghitung anggaran terpakai berdasarkan progress proyek. Dari 
+total budget 1.5 Miliar rupiah, kita bisa lihat berapa yang sudah terpakai 
+dan berapa sisanya.
+
+[Section: Timeline Progress]
+Dan di bagian bawah ini adalah Log Harian dari pekerja lapangan. Setiap 
+kali worker menambah daily log dengan update progress, data langsung muncul 
+di sini secara chronological dengan tanggal, deskripsi pekerjaan, dan 
+progress yang ditambahkan."
+
+
+================================================================================
+6. EAI INTEGRATION DEMO - HIGHLIGHT UTAMA (3 menit)
+================================================================================
+
+"Sekarang saya akan mendemonstrasikan fitur paling penting: Enterprise 
+Application Integration, yaitu trigger pembayaran otomatis ketika proyek 
+mencapai milestone tertentu.
+
+[Navigate ke Finance page]
+
+Sekarang kita lihat halaman Finance untuk proyek Villa Bali. Di sini ada 
+payment terms berdasarkan milestone:
+
+- DP sudah dibayar saat kontrak (20%)
+- Termin 1 akan cair saat progress mencapai 50%
+- Termin 2 akan cair saat progress mencapai 80%
+- Dan Retensi saat proyek selesai 100%
+
+Saat ini, progress proyek ada di 35%, sehingga Termin 1 masih berstatus 
+'Unpaid' karena belum mencapai milestone 50%.
+
+[Switch ke Browser 2 untuk login Worker]
+
+Sekarang saya akan masuk sebagai pekerja lapangan.
+
+[Login dengan worker@buildpro.com / 123456]
+
+Sebagai worker, tugas saya adalah input daily log setiap hari. Mari kita 
+tambahkan log baru.
+
+[Navigate ke Daily Logs → Klik Add New Log]
+
+Saya akan isi data pekerjaan hari ini:
+- Project: Pembangunan Villa Bali
+- Date: [pilih hari ini]
+- Description: Pengecoran lantai 2 selesai
+- Progress Added: 20%
+- Worker Name: Budi Tukang
+- Notes: Material cukup, cuaca mendukung
+
+[Klik Submit]
+
+Dengan penambahan 20% ini, total progress proyek akan menjadi 55%, yang 
+berarti MELEWATI milestone Termin 1 di angka 50%.
+
+[Switch kembali ke Browser 1 - Admin Dashboard]
+
+Sekarang perhatikan baik-baik. Kita tunggu auto-refresh bekerja...
+
+[Tunggu sampai notification muncul - kurang lebih 10 detik]
+
+LIHAT! Notifikasi muncul: 'Progress naik dari 35% menjadi 55%'
+
+[Navigate kembali ke Finance page]
+
+Dan yang paling penting... Perhatikan Termin 1...
+
+Status Termin 1 BERUBAH OTOMATIS dari 'Unpaid' menjadi 'Pending'!
+
+Ini adalah Enterprise Application Integration yang bekerja secara real-time:
+
+Worker input daily log di Project Service →
+Progress update di database →
+Budget Service mendeteksi milestone tercapai →
+Auto-update payment status →
+Dashboard langsung reflect perubahan
+
+Semua ini terjadi otomatis tanpa intervensi manual. Ini memenuhi requirement 
+EAI yang diminta: trigger pembayaran otomatis saat milestone tercapai."
+
+
+================================================================================
+7. MATERIAL MANAGEMENT (1 menit)
+================================================================================
+
+[Navigate ke Material & Logistics]
+
+"BuildPro juga dilengkapi Material Service berbasis Python Flask untuk 
+mengelola inventory material konstruksi.
+
+[Tunjukkan tabel material]
+
+Di sini kita bisa manage berbagai material seperti:
+- Semen Portland - stock 100 sak
+- Pasir Beton - 50 meter kubik
+- Besi Beton - 200 batang
+
+Sistem otomatis memberikan indicator Low Stock jika stock di bawah minimum. 
+Dan kita bisa langsung create Purchase Order dari halaman ini untuk 
+memesan ke vendor."
+
+
+================================================================================
+8. VENDOR PORTAL (45 detik)
+================================================================================
+
+[Navigate ke Vendor Portal]
+
+"Untuk supplier atau vendor, ada Vendor Service yang dibangun dengan Go 
+untuk performa tinggi.
+
+[Tunjukkan vendor materials]
+
+Vendor bisa upload catalog mereka dengan informasi lengkap: harga per unit, 
+stock yang tersedia, dan estimasi waktu delivery.
+
+Sebagai admin, kita bisa bandingkan harga material yang sama dari berbagai 
+vendor untuk mendapatkan harga terbaik. Misalnya di sini, kita bisa lihat 
+harga Semen Portland dari 3 vendor berbeda."
+
+
+================================================================================
+9. GRAPHQL DEMO (Optional - 30 detik)
+================================================================================
+
+[Buka tab baru: localhost:5006/graphql]
+
+"Sebagai bonus, BuildPro juga dilengkapi GraphQL Server untuk querying 
+data yang lebih fleksibel.
+
+[Ketik atau paste query]
+
+query {
+  projects {
+    name
+    progress
+    budget
+  }
+}
+
+[Execute query]
+
+Dengan satu query, kita bisa fetch data dari berbagai service tanpa perlu 
+multiple API calls. Ini sangat berguna untuk mobile apps atau third-party 
+integrations."
+
+
+================================================================================
+10. TECHNICAL HIGHLIGHTS (1 menit)
+================================================================================
+
+"Sebelum saya tutup, saya ingin highlight beberapa poin teknis yang kami 
+implementasikan di BuildPro:
+
+Pertama, Polyglot Microservices - menggunakan 4 bahasa berbeda untuk 
+mendemonstrasikan bagaimana teknologi berbeda bisa terintegrasi.
+
+Kedua, Docker Containerization - one-command deployment yang production-ready.
+
+Ketiga, Real-time Updates - dashboard auto-refresh setiap 10 detik tanpa 
+manual reload.
+
+Keempat, dan yang terpenting, Enterprise Application Integration - 
+auto-trigger payment saat milestone tercapai, yang sudah kita demo tadi.
+
+Kelima, Role-Based Access Control - sistem mendukung 4 role berbeda: 
+Admin, Worker, Logistic, dan Vendor, dengan akses yang sesuai perannya.
+
+Keenam, Data untuk S-Curve - kami sudah menyiapkan tabel progress_history 
+untuk generate grafik S-Curve timeline proyek.
+
+Ketujuh, API Gateway Pattern - semua request masuk melalui centralized 
+gateway untuk better routing dan security.
+
+Dan terakhir, GraphQL Layer untuk flexible data querying."
+
+
+================================================================================
+11. PENUTUP (30 detik)
+================================================================================
+
+"Jadi, untuk merangkum, BuildPro adalah implementasi production-grade 
+microservices architecture dengan enterprise integration yang bekerja 
+real-time.
+
+Semua requirement yang diminta telah terpenuhi:
+✓ Project Service dengan timeline kurva-S dan log harian
+✓ Material Service untuk inventory dan pembelian
+✓ Vendor Portal untuk supplier management
+✓ Budget Service dengan pencairan termin otomatis
+✓ Dan yang paling penting, EAI Challenge: payment trigger saat milestone 
+  tercapai - sudah kita lihat bekerja secara real-time tadi
+
+Semua ini bisa deployed dengan satu command menggunakan Docker Compose, 
+making it truly production-ready.
+
+Terima kasih atas perhatiannya. Saya siap menjawab pertanyaan."
+
+
+================================================================================
+PERSIAPAN Q&A
+================================================================================
+
+PERTANYAAN: Kenapa pakai 4 bahasa berbeda? Apa tidak lebih mudah pakai 1 bahasa?
+
+JAWABAN:
+"Pertanyaan bagus. Ada beberapa alasan:
+Pertama, untuk mendemonstrasikan polyglot architecture yang sering dipakai 
+di perusahaan besar. Di dunia nyata, sistem enterprise sering merupakan 
+kombinasi dari berbagai teknologi legacy dan modern.
+
+Kedua, setiap bahasa punya kelebihannya masing-masing. Java sangat baik 
+untuk financial systems karena presisi dan stabilitas. Python excellent 
+untuk data processing. Go bagus untuk high-performance services. Node.js 
+ideal untuk I/O intensive operations.
+
+Ketiga, ini memaksa kami untuk benar-benar memahami service boundaries 
+dan API contracts, karena services harus berkomunikasi via REST API 
+terlepas dari bahasa apa yang mereka pakai."
+
+---
+
+PERTANYAAN: Bagaimana services berkomunikasi satu sama lain?
+
+JAWABAN:
+"Services berkomunikasi via REST API melalui API Gateway. API Gateway 
+bertugas routing request ke service yang tepat.
+
+Semua services juga share satu MySQL database sebagai single source of 
+truth, jadi mereka bisa read/write data yang sama dengan proper foreign 
+keys untuk maintain data integrity.
+
+Untuk complex queries, kita juga punya GraphQL layer yang bisa aggregate 
+data dari berbagai tabel dalam satu query."
+
+---
+
+PERTANYAAN: Kalau satu service down, apa yang terjadi?
+
+JAWABAN:
+"Karena arsitektur loosely coupled, kalau satu service down, service lain 
+tetap bisa berjalan untuk fungsinya masing-masing.
+
+Misalnya kalau Vendor Service down, Project Service dan Budget Service 
+tetap bisa beroperasi normal. User hanya tidak bisa akses vendor portal 
+sementara.
+
+Untuk production environment, kita bisa implement health checks dan 
+auto-restart mechanism di Docker atau menggunakan orchestration tool 
+seperti Kubernetes untuk high availability."
+
+---
+
+PERTANYAAN: Apakah sistem ini bisa di-scale untuk handle lebih banyak users?
+
+JAWABAN:
+"Tentu saja. Karena semua services sudah containerized, kita bisa easily 
+scale individual services.
+
+Misalnya kalau Material Service banyak diakses, kita bisa spin up multiple 
+instances dari Material Service saja tanpa perlu scale yang lain.
+
+Dengan menggunakan Docker Swarm atau Kubernetes, kita bisa implement 
+horizontal scaling dan load balancing dengan mudah.
+
+Database juga bisa di-scale dengan read replicas atau sharding jika 
+diperlukan."
+
+---
+
+PERTANYAAN: Bagaimana handle data consistency?
+
+JAWABAN:
+"Kita menggunakan shared database dengan proper foreign keys dan 
+constraints untuk maintain data integrity.
+
+Untuk operasi yang membutuhkan consistency, kita bisa implement database 
+transactions.
+
+Dan kita sudah menyiapkan event_queue table untuk implement eventual 
+consistency pattern jika needed di future development."
+
+---
+
+PERTANYAAN: Berapa lama development BuildPro ini?
+
+JAWABAN:
+"Development BuildPro memakan waktu [sesuaikan dengan waktu actual Anda], 
+dengan fokus pada implementing semua requirement yang diminta plus beberapa 
+bonus features seperti real-time updates dan GraphQL.
+
+Yang paling challenging adalah mengintegrasikan 4 bahasa berbeda dan 
+memastikan EAI bekerja dengan smooth."
+
+---
+
+PERTANYAAN: Apa kendala terbesar yang dihadapi?
+
+JAWABAN:
+"Kendala terbesar ada dua:
+
+Pertama, ensuring consistent API contracts antar services. Karena pakai 
+banyak bahasa, kita harus extra careful dengan data types dan API responses.
+
+Kedua, implementing real-time EAI integration. Kita harus design bagaimana 
+Budget Service bisa detect milestone achievement tanpa constant polling, 
+dan ensure payment status updates reflected immediately di frontend.
+
+Tapi dengan proper database design dan event-driven thinking, masalah-masalah 
+ini bisa diatasi."
+
+
+================================================================================
+TIPS TERAKHIR
+================================================================================
+
+1. LATIHAN
+   - Baca skrip ini minimal 2-3 kali
+   - Practice demo flow tanpa melihat skrip
+   - Time yourself - target 10-12 menit total
+
+2. PERSIAPAN TEKNIS
+   - Test semua containers 1 jam sebelum presentasi
+   - Prepare 2 browser windows sebelumnya
+   - Bookmark halaman-halaman penting
+   - Clear browser cache untuk clean demo
+
+3. SAAT PRESENTASI
+   - Bicara dengan confident dan jelas
+   - Jangan terburu-buru, especially di EAI demo
+   - Interact dengan audience - "Perhatikan baik-baik..."
+   - Smile dan maintain eye contact
+
+4. BACKUP PLAN
+   - Screenshot hasil demo jika demo live gagal
+   - PDF dari dashboard untuk fallback
+   - Recording demo video sebagai cadangan
+
+SEMANGAT! YOU GOT THIS! 🚀
